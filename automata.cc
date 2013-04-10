@@ -22,10 +22,10 @@
 #include <queue>
 #include "automata.hh"
 
-#define CONTAIN (c, k) (c.find (k) != c.end())
+#define CONTAIN(c,k) (c.find (k) != c.end())
 
 template <typename C>
-NFA::NFA (Set<std::basic_string<C>> const &code)
+NFA<C>::NFA (Set<std::basic_string<C>> const &code)
 {
     // alphabet
     //
@@ -66,10 +66,10 @@ NFA::NFA (Set<std::basic_string<C>> const &code)
 }
 
 template <typename C>
-DFA::DFA (Set<std::basic_string<C>> const &code) 
+DFA<C>::DFA (Set<std::basic_string<C>> const &code) 
 {
 
-    NFA nfa (code);
+    NFA<C> nfa (code);
 
 
     // construct DFA
@@ -81,7 +81,7 @@ DFA::DFA (Set<std::basic_string<C>> const &code)
     // DFA transitions && state
     std::queue<State> openSet;
 
-    stateQueue.push (initState);
+    openSet.push (initState);
 
     Map<State, Set<State>> unitStates;
     unitStates[initState] = { initState };

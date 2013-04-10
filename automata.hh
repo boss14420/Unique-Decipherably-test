@@ -25,26 +25,7 @@
 #include <utility>
 
 template<typename T> using Set = std::unordered_set<T>;
-template<typename Key, Value> using Map = std::unordered_map<Key, Value>;
-
-template <typename C>
-class NFA {
-public:
-    typedef int State;
-    typedef std::pair<std::pair<State, C>, Set<State>> Transition;
-
-public:
-    NFA() {}
-
-    NFA (Set<std::basic_string<C>> const &code);
-
-private:
-    std::vector<C> alphabet;
-    Set<State> states;
-    State initState;
-    Set<State> finishStates; 
-    Map<Transition> transitions;
-};
+template<typename Key, typename Value> using Map = std::unordered_map<Key, Value>;
 
 template <typename C>
 class DFA {
@@ -62,5 +43,26 @@ private:
     Set<State> states;
     State initState;
     Set<State> finishStates;
-    Map<Transition> transitions;
+    Map<std::pair<State, C>, State> transitions;
 };
+
+
+template <typename C>
+class NFA {
+public:
+    typedef int State;
+    typedef std::pair<std::pair<State, C>, Set<State>> Transition;
+    friend class DFA<C>;
+public:
+    NFA() {}
+
+    NFA (Set<std::basic_string<C>> const &code);
+
+private:
+    std::vector<C> alphabet;
+    Set<State> states;
+    State initState;
+    Set<State> finishStates; 
+    Map<std::pair<State, C>, Set<State>> transitions;
+};
+
