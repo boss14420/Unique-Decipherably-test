@@ -26,19 +26,13 @@
 #include <iostream>
 #include "automata.hh"
 
-template <typename T> using Set = std::unordered_set<T>;
-
 bool is_ud (Set<std::string> const &code) {
 
-    //
-    // construct DFA
-
-    Set<char> alphabet;
-    for (auto &w : code)
-        for (auto &c : w)
-            alphabet.insert (c);
-
-
+    try {
+        DFA<char> dfa (code);
+    } catch (..) {
+        return false;
+    }
 
     return true;
 }
