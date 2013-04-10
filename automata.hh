@@ -45,3 +45,22 @@ private:
     Set<State> finishStates; 
     Map<Transition> transitions;
 };
+
+template <typename C>
+class DFA {
+public:
+    typedef int State;
+    typedef std::pair<std::pair<State, C>, State> Transition;
+
+public:
+    DFA() {}
+
+    DFA (Set<std::basic_string<C>> const &code);
+
+private:
+    std::vector<C> alphabet;
+    Set<State> states;
+    State initState;
+    Set<State> finishStates;
+    Map<Transition> transitions;
+};

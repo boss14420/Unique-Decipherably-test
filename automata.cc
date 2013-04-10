@@ -158,7 +158,7 @@ _exit:
     //
     // Finish states
 
-    for (auto is = states.begin(); is != states.end(); ++is)
-        if (CONTAIN (is->unitStates, 0))
-            finishStates->insert (is);
+    for (State s : states)
+        if (CONTAIN (unitStates[s], initState))
+            finishStates.insert (s);
 }
