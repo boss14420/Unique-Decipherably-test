@@ -27,6 +27,24 @@
 template<typename T> using Set = std::unordered_set<T>;
 template<typename Key, typename Value> using Map = std::unordered_map<Key, Value>;
 
+namespace std {
+
+    template <typename A, typename B>
+        struct hash<pair<A, B>>
+        {
+            private:
+                const hash<A> ah;
+                const hash<B> bh;
+            public:
+                hash() : ah(), bh() {}
+                size_t operator()(const std::pair<A, B> &p) const {
+                    size_t seed = ah(p.first);
+                    return bh(p.second) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+                }
+        };
+}
+
+
 template <typename C>
 class DFA {
 public:

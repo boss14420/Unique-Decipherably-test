@@ -30,7 +30,7 @@ bool is_ud (Set<std::string> const &code) {
 
     try {
         DFA<char> dfa (code);
-    } catch (..) {
+    } catch (...) {
         return false;
     }
 
