@@ -41,14 +41,18 @@ NFA<C>::NFA (Set<std::basic_string<C>> const &code)
 
     int iStateCount = 0;
     initState = iStateCount;
+    states.insert (initState);
+    finishStates.insert (initState);
 
     for (auto &w : code) {
         State prevState = 0;
         auto wi = w.begin();
-        for (; wi + 1 != w.end(); ++w) {
+        for (; wi + 1 != w.end(); ++wi) {
             auto iTranst = transitions.find ({prevState, *wi});
             if (iTranst == transitions.end()) {
-                transitions[{prevState, *wi}] = {prevState = ++iStateCount};
+                transitions[{prevState, *wi}] = {++iStateCount};
+                prevState = iStateCount;
+                states.insert (iStateCount);
             } else {
                 prevState = -1;
                 for (auto s : iTranst->second)
@@ -57,8 +61,10 @@ NFA<C>::NFA (Set<std::basic_string<C>> const &code)
                         break;
                     }
 
-                if (prevState == -1) 
+                if (prevState == -1) {
                     iTranst->second.insert (prevState = ++iStateCount);
+                    states.insert (iStateCount);
+                }
             }
         }
         transitions[{prevState, *wi}].insert (0);
@@ -74,9 +80,13 @@ DFA<C>::DFA (Set<std::basic_string<C>> const &code)
 
     // construct DFA
     //
-    
+
+    // DFA alphabet
+    alphabet = nfa.alphabet;
+
     // DFA initState
     initState = nfa.initState;
+    states.insert (initState);
 
     // DFA transitions && state
     std::queue<State> openSet;
@@ -86,7 +96,7 @@ DFA<C>::DFA (Set<std::basic_string<C>> const &code)
     Map<State, Set<State>> unitStates;
     unitStates[initState] = { initState };
 
-    int iStateCount = nfa.states.size() - 1;
+    int iStateCount = nfa.states.size();
     int goto_initState = 0;
     while (!openSet.empty()) {
         auto currentState = openSet.front();
