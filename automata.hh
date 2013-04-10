@@ -19,6 +19,9 @@
 
 **************************************************************************/
 
+#ifndef _AUTOMATA_HH_
+#define _AUTOMATA_HH_
+
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
@@ -84,3 +87,6 @@ private:
     Map<std::pair<State, C>, Set<State>> transitions;
 };
 
+#include "automata.cc"
+
+#endif // _AUTOMATA_HH_
