@@ -124,12 +124,27 @@ DFA::DFA (Set<std::basic_string<C>> const &code)
                 State s = *nextStates.begin();
                 states.insert (s);
                 transitions[{currentState,c}] = s;
-                unitStates[transitions[{currentState,c}]] = { s };
-                openSet.push (s);
+                if (!CONTAIN (unitStates, s)) {
+                    unitStates[s] = { s };
+                    openSet.push (s);
+                }
             } else {
+
+                bool foundOldState = false;
                 for (int s = nfa.states.size(); s != iStateCount; ++s) {
-                    if (unitStates[s] != nextStates)
-                        
+                    if (unitStates[s] == nextStates) {
+                        transitions[{currentState,c}] = s;
+                        foundOldState = true;
+                        break;
+                    }
+                }
+
+                if (!foundOldState) {
+                    states.insert (iStateCount);
+                    transitions[{currentState,c}] = iStateCount;
+                    unitStates[iStateCount] = std::move (nextStates);
+                    openSet.push (iStateCount);
+                    ++iStateCount;
                 }
             }
         }
