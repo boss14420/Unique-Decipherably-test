@@ -47,11 +47,24 @@ namespace std {
         };
 }
 
-
 template <typename C>
-class DFA {
+class FiniteAutomation {
 public:
     typedef int State;
+    static const State invalid_state = -1;
+
+public:
+
+private:
+    std::vector<C> alphabet;
+    Set<State> states;
+    State initState;
+    Set<State> finishStates;
+};
+
+template <typename C>
+class DFA : public FiniteAutomation<C> {
+public:
     typedef std::pair<std::pair<State, C>, State> Transition;
 
 public:
@@ -60,30 +73,22 @@ public:
     DFA (Set<std::basic_string<C>> const &code);
 
 private:
-    std::vector<C> alphabet;
-    Set<State> states;
-    State initState;
-    Set<State> finishStates;
     Map<std::pair<State, C>, State> transitions;
 };
 
 
 template <typename C>
-class NFA {
+class NFA : public FiniteAutomation<C> {
 public:
-    typedef int State;
     typedef std::pair<std::pair<State, C>, Set<State>> Transition;
     friend class DFA<C>;
+
 public:
     NFA() {}
 
     NFA (Set<std::basic_string<C>> const &code);
 
 private:
-    std::vector<C> alphabet;
-    Set<State> states;
-    State initState;
-    Set<State> finishStates; 
     Map<std::pair<State, C>, Set<State>> transitions;
 };
 
