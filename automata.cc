@@ -20,6 +20,7 @@
 **************************************************************************/
 
 #include <queue>
+#include <algorithm>
 #include "automata.hh"
 
 #define CONTAIN(c,k) (c.find (k) != c.end())
@@ -70,6 +71,37 @@ NFA<C>::NFA (Set<std::basic_string<C>> const &code)
         transitions[{prevState, *wi}].insert (0);
     }
 }
+
+template <typename C>
+bool NFA<C>::recognizeEmptyString() const
+{
+    return finishStates.find (initState) != finishStates.end();
+}
+
+template <typename C>
+NFA<C> NFA<C>::notRecogEmptyNFA() const
+{
+    if (!recognizeEmptyString())
+        return *this;
+    
+    NFA neNfa (*this);
+    neNfa.finishStates.erase (initState);
+
+    std::deque<C> charList;
+    for (C c : alphabet)
+        if (CONTAIN (transitions, {initState, c}))
+            charList.push_back (c);
+    
+    if (charList.empty())
+        return neNfa;
+
+    State newInitState (*std::max_element (states.begin(), states.end()) + 1);
+    for (C c : charList)
+        neNfa.transitions[{newInitState,c}] = {initState};
+
+    return neNfa;
+}
+
 
 template <typename C>
 DFA<C>::DFA (Set<std::basic_string<C>> const &code) 

@@ -54,6 +54,7 @@ public:
     static const State invalid_state = -1;
 
 public:
+    virtual bool recognizeEmptyString() = 0 const;
 
 private:
     std::vector<C> alphabet;
@@ -87,6 +88,10 @@ public:
     NFA() {}
 
     NFA (Set<std::basic_string<C>> const &code);
+
+public:
+    virtual bool recognizeEmptyString() const;
+    NFA notRecogEmptyNFA() const;
 
 private:
     Map<std::pair<State, C>, Set<State>> transitions;
