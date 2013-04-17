@@ -1,4 +1,4 @@
-all: udtest-automata udtest-tail
+all: udtest-automata udtest-tail automata-test
 
 CXX = g++
 CXXFLAGS = -g -Wall -std=c++11
@@ -10,10 +10,17 @@ udtest-tail: udtest-tail.cc
 udtest-automata: udtest-automata.cc automata.hh automata.cc
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $<
 
-clean: clean-tail clean-automata
+automata-test: automata-test.cc automata.hh automata.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $<
+
+
+clean: clean-tail clean-automata clean-automata-test
 
 clean-tail:
 	rm udtest-tail
 
 clean-automata:
 	rm udtest-automata
+
+clean-automata-test:
+	rm automata-test
