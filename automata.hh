@@ -36,17 +36,11 @@ template<typename Key, typename Value> using Map = std::unordered_map<Key, Value
 //template <typename C> class DFA;
 //template <typename C> class NFA;
 
-template <typename C> class FiniteAutomation;
-
-template <typename C> 
-bool 
-operator== (FiniteAutomation<C> const &dfa1, FiniteAutomation<C> const &dfa2);
-
-
-template <typename C>
 class FiniteAutomation {
 public:
     typedef int State;
+    typedef char C;
+
     static const State invalid_state = -1;
     static const C empty_letter;
 
@@ -93,7 +87,7 @@ public:
     FiniteAutomation& trim();
 
     friend 
-    bool operator== <C> (FiniteAutomation<C> const&, FiniteAutomation<C> const&);
+    bool operator== (FiniteAutomation const&, FiniteAutomation const&);
 
 private:
     Set<State> eClosure (State s) const;
@@ -175,6 +169,5 @@ private:
 //
 //};
 //
-#include "automata.cc"
 
 #endif // _AUTOMATA_HH_

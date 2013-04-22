@@ -26,8 +26,7 @@
 
 #define CONTAIN(c,k) (c.find (k) != c.end())
 
-template <typename C>
-const C FiniteAutomation<C>::empty_letter = C() - 2;
+const FiniteAutomation::C FiniteAutomation::empty_letter = C() - 2;
 
 /* template <typename C>
  * NFA<C>::NFA (Set<std::basic_string<C>> const &code)
@@ -78,8 +77,7 @@ const C FiniteAutomation<C>::empty_letter = C() - 2;
  * 
  */
 
-template <typename C>
-bool FiniteAutomation<C>::recognizeEmptyString() const
+bool FiniteAutomation::recognizeEmptyString() const
 {
     bool initIsFinish = CONTAIN (finishStates, initState);
 
@@ -115,8 +113,7 @@ bool FiniteAutomation<C>::recognizeEmptyString() const
     return false;
 }
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::excludeEmptyString() 
+FiniteAutomation& FiniteAutomation::excludeEmptyString() 
 {
     if (!recognizeEmptyString())
         return *this;
@@ -142,9 +139,7 @@ FiniteAutomation<C>& FiniteAutomation<C>::excludeEmptyString()
 }
 
 
-template <typename C>
-Set<typename FiniteAutomation<C>::State> 
-FiniteAutomation<C>::eClosure (State s) const
+Set<FiniteAutomation::State> FiniteAutomation::eClosure (State s) const
 {
     if (!(flags & FlagHasEMove))
         return {s};
@@ -174,9 +169,8 @@ FiniteAutomation<C>::eClosure (State s) const
     return result;
 }
 
-template <typename C>
-Set<typename FiniteAutomation<C>::State> 
-FiniteAutomation<C>::eClosure (Set<typename FiniteAutomation<C>::State> const &ss) const
+Set<FiniteAutomation::State> 
+FiniteAutomation::eClosure (Set<State> const &ss) const
 {
     Set<State> result;
     for (State s : ss) {
@@ -186,8 +180,7 @@ FiniteAutomation<C>::eClosure (Set<typename FiniteAutomation<C>::State> const &s
     return result;
 }
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::removeEMoves()
+FiniteAutomation& FiniteAutomation::removeEMoves()
 {
     if (!(flags & FlagHasEMove))
         return *this;
@@ -274,8 +267,7 @@ FiniteAutomation<C>& FiniteAutomation<C>::removeEMoves()
 }
 
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::normalizeStateIndex()
+FiniteAutomation& FiniteAutomation::normalizeStateIndex()
 {
     Map<State, State> newIndex;
     decltype(states) newStates;
@@ -295,7 +287,6 @@ FiniteAutomation<C>& FiniteAutomation<C>::normalizeStateIndex()
 
     decltype(transitions) newTransitions;
     for (auto &transts : transitions) {
-//        typename std::decay<decltype(transts)>::type newTransts;
         Transition newTransts;
         newTransts.first.first = newIndex[transts.first.first];
         for (State ns : transts.second)
@@ -307,41 +298,47 @@ FiniteAutomation<C>& FiniteAutomation<C>::normalizeStateIndex()
     return *this;
 }
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::removeInAccessibleStates()
+FiniteAutomation& FiniteAutomation::removeInAccessibleStates()
 {
-    if (flags & FlagAcceccable)
+    if (flags & FlagCoacceccable)
         return *this;
 
     std::vector<Set<State>> nextStates (states.size());
     for (auto &transt : transitions)
         nextStates[transt.first.first]
-                    .insert (transt.second.begin(), transt.second.end());
-
+            .insert (transt.second.begin(), transt.second.end());
 
     //
     // remove inaccessible states
 
     std::queue<State> statesQueue;
-    statesQueue.push (initState);
+    for (State f : finishStates) statesQueue.push (f);
+
     Set<State> accessibleStates = { initState };
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
         statesQueue.pop();
         accessibleStates.insert (s);
-        for (State ns : nextStates[s])
-            if (!CONTAIN (accessibleStates, ns))
-                statesQueue.push (ns);
+        for (State ps : nextStates[s])
+            if (!CONTAIN (accessibleStates, ps))
+                statesQueue.push (ps);
     }
 
     // remove inaccessible path
     decltype(transitions) newTransitions;
     for (auto &transt : transitions) {
-        if (CONTAIN (accessibleStates, transt->first.first)
-             && CONTAIN (accessibleStates, transt->second))
-            newTransitions.insert (transt);
+        if (CONTAIN (accessibleStates, transt.first.first)) {
+            Transition newTranst;
+            newTranst.first = transt.first;
+            for (State ns : transt.second)
+                if (CONTAIN (accessibleStates, ns))
+                    newTranst.second.insert (ns);
+            if (!newTranst.second.empty())
+                newTransitions.insert (newTranst);
+        }
     }
 
+    
     // remove inaccessible finish states
     decltype(finishStates) newFinishStates;
     for (State s : finishStates)
@@ -358,8 +355,7 @@ FiniteAutomation<C>& FiniteAutomation<C>::removeInAccessibleStates()
     return *this;
 }
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::removeNotCoaccessibleStates()
+FiniteAutomation& FiniteAutomation::removeNotCoaccessibleStates()
 {
     if (flags & FlagCoacceccable)
         return *this;
@@ -375,7 +371,7 @@ FiniteAutomation<C>& FiniteAutomation<C>::removeNotCoaccessibleStates()
     std::queue<State> statesQueue;
     for (State f : finishStates) statesQueue.push (f);
 
-    Set<State> coaccessibleStates = {finishStates};
+    Set<State> coaccessibleStates = finishStates;
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
         statesQueue.pop();
@@ -389,7 +385,7 @@ FiniteAutomation<C>& FiniteAutomation<C>::removeNotCoaccessibleStates()
     decltype(transitions) newTransitions;
     for (auto &transt : transitions) {
         if (CONTAIN (coaccessibleStates, transt.first.first)) {
-            std::pair<std::pair<State,C>, Set<State>> newTranst;
+            Transition newTranst;
             newTranst.first = transt.first;
             for (State ns : transt.second)
                 if (CONTAIN (coaccessibleStates, ns))
@@ -599,24 +595,24 @@ FiniteAutomation<C>& FiniteAutomation<C>::removeNotCoaccessibleStates()
  * 
  */
 
-template <typename C>
-FiniteAutomation<C>& FiniteAutomation<C>::trim()
+FiniteAutomation& FiniteAutomation::trim()
 {
-    return removeNotCoaccessibleStates (removeInAccessibleStates());
+    return removeNotCoaccessibleStates().removeInAccessibleStates();
 }
 
 
-template <typename C>
-bool operator== (FiniteAutomation<C> const &dfa1, FiniteAutomation<C> const &dfa2)
+bool operator== (FiniteAutomation const &dfa1, FiniteAutomation const &dfa2)
 {
-    FiniteAutomation<C> td1 = dfa1; 
+    FiniteAutomation td1 = dfa1; 
     td1.removeNotCoaccessibleStates();
     td1.removeEMoves();
-    FiniteAutomation<C> td2 = dfa2; 
+    FiniteAutomation td2 = dfa2; 
     td2.removeNotCoaccessibleStates();
     td2.removeEMoves();
 
-    typedef typename FiniteAutomation<C>::State State;
+    typedef FiniteAutomation::State State;
+    typedef FiniteAutomation::C C;
+
     typedef std::pair<State, State> StatePair;
     std::queue<StatePair> pairsQueue;
     pairsQueue.push ({td1.initState, td2.initState});
