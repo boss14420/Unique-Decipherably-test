@@ -26,30 +26,21 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
+#include <string>
+#include "util.hpp"
 
 template<typename T> using Set = std::unordered_set<T>;
 template<typename Key, typename Value> using Map = std::unordered_map<Key, Value>;
 
-namespace std {
 
-    template <typename A, typename B>
-        struct hash<pair<A, B>>
-        {
-            public:
-                hash() {}
-                size_t operator()(const std::pair<A, B> &p) const {
-                    hash<A> ah;
-                    hash<B> bh;
-                    size_t seed = ah(p.first);
-                    return bh(p.second) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-                }
-        };
-}
+//template <typename C> class DFA;
+//template <typename C> class NFA;
 
-template <typename C> class DFA;
-template <typename C> class NFA;
+template <typename C> class FiniteAutomation;
 
-template <typename C> bool operator== (DFA<C> const &dfa1, DFA<C> const &dfa2);
+template <typename C> 
+bool 
+operator== (FiniteAutomation<C> const &dfa1, FiniteAutomation<C> const &dfa2);
 
 
 template <typename C>
