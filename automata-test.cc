@@ -37,7 +37,7 @@ int main (int argc, char *argv[])
 //        {2}
 //    };
 
-    NFA<char> nfa1 (
+    FiniteAutomation<char> nfa1 (
         // alphabet
         {{ 'a', 'b' }},
         // states
@@ -52,10 +52,15 @@ int main (int argc, char *argv[])
             {{1, 'a'}, {1,2}},
             {{1, 'b'}, {1}},
             {{2, 'b'}, {2}}
-        }}
+        }},
+        static_cast<typename FiniteAutomation<char>::FAFlag> (
+            FiniteAutomation<char>::FlagNFA 
+            | FiniteAutomation<char>::FlagAcceccable
+            | FiniteAutomation<char>::FlagCoacceccable
+        )
     );
     
-    NFA<char> nfa2 (
+    FiniteAutomation<char> nfa2 (
         // alphabet
         { 'a', 'b' },
         // states
@@ -69,15 +74,18 @@ int main (int argc, char *argv[])
             {{0, 'a'}, {1}},
             {{1, 'a'}, {1}},
             {{1, 'b'}, {1,2}},
-        }
+        },
+        static_cast<typename FiniteAutomation<char>::FAFlag> (
+            FiniteAutomation<char>::FlagNFA 
+            | FiniteAutomation<char>::FlagAcceccable
+            | FiniteAutomation<char>::FlagCoacceccable
+        )
     );
 
     std::cout << nfa1.recognizeEmptyString() << '\n';
     std::cout << nfa2.recognizeEmptyString() << '\n';
 
-    DFA<char> dfa1 (nfa1), dfa2 (nfa2);
-
-    std::cout << (dfa1 == dfa2) << '\n';
+    std::cout << (nfa1 == nfa2) << '\n';
 
     return 0;
 }

@@ -21,288 +21,309 @@
 
 #include <queue>
 #include <algorithm>
+#include <tuple>
 #include "automata.hh"
 
 #define CONTAIN(c,k) (c.find (k) != c.end())
 
 template <typename C>
-NFA<C>::NFA (Set<std::basic_string<C>> const &code)
-{
-    // alphabet
-    //
-    Set<C> alphabet_set;
-    for (auto &w : code)
-        for (auto &c : w)
-            alphabet_set.insert (c);
-    alphabet.assign (alphabet_set.begin(), alphabet_set.end());
+const C FiniteAutomation<C>::empty_letter = C() - 2;
 
-
-    // construct NFA
-    //
-
-    int iStateCount = 0;
-    initState = iStateCount;
-    states.insert (initState);
-    finishStates.insert (initState);
-
-    for (auto &w : code) {
-        State prevState = 0;
-        auto wi = w.begin();
-        for (; wi + 1 != w.end(); ++wi) {
-            auto iTranst = transitions.find ({prevState, *wi});
-            if (iTranst == transitions.end()) {
-                transitions[{prevState, *wi}] = {++iStateCount};
-                prevState = iStateCount;
-                states.insert (iStateCount);
-            } else {
-                prevState = -1;
-                for (auto s : iTranst->second)
-                    if (s != 0) {
-                        prevState = s;
-                        break;
-                    }
-
-                if (prevState == -1) {
-                    iTranst->second.insert (prevState = ++iStateCount);
-                    states.insert (iStateCount);
-                }
-            }
-        }
-        transitions[{prevState, *wi}].insert (0);
-    }
-}
+/* template <typename C>
+ * NFA<C>::NFA (Set<std::basic_string<C>> const &code)
+ * {
+ *     // alphabet
+ *     //
+ *     Set<C> alphabet_set;
+ *     for (auto &w : code)
+ *         for (auto &c : w)
+ *             alphabet_set.insert (c);
+ *     alphabet.assign (alphabet_set.begin(), alphabet_set.end());
+ * 
+ * 
+ *     // construct NFA
+ *     //
+ * 
+ *     int iStateCount = 0;
+ *     initState = iStateCount;
+ *     states.insert (initState);
+ *     finishStates.insert (initState);
+ * 
+ *     for (auto &w : code) {
+ *         State prevState = 0;
+ *         auto wi = w.begin();
+ *         for (; wi + 1 != w.end(); ++wi) {
+ *             auto iTranst = transitions.find ({prevState, *wi});
+ *             if (iTranst == transitions.end()) {
+ *                 transitions[{prevState, *wi}] = {++iStateCount};
+ *                 prevState = iStateCount;
+ *                 states.insert (iStateCount);
+ *             } else {
+ *                 prevState = -1;
+ *                 for (auto s : iTranst->second)
+ *                     if (s != 0) {
+ *                         prevState = s;
+ *                         break;
+ *                     }
+ * 
+ *                 if (prevState == -1) {
+ *                     iTranst->second.insert (prevState = ++iStateCount);
+ *                     states.insert (iStateCount);
+ *                 }
+ *             }
+ *         }
+ *         transitions[{prevState, *wi}].insert (0);
+ *     }
+ * }
+ * 
+ */
 
 template <typename C>
 bool FiniteAutomation<C>::recognizeEmptyString() const
 {
-    return finishStates.find (initState) != finishStates.end();
+    bool initIsFinish = CONTAIN (finishStates, initState);
+
+    if (!(flags & FlagHasEMove))
+        return initIsFinish;
+
+    if (initIsFinish)
+        return true;
+
+    std::queue<State> closure;
+    closure.push (initState);
+
+    std::vector<bool> accessedStates (states.size(), false);
+
+    while (!closure.empty()) {
+        State s = closure.front();
+
+        if (CONTAIN (finishStates, s))
+            return true;
+
+        closure.pop();
+        accessedStates[s] = true;
+        
+        auto iNextStates = transitions.find ({initState,empty_letter}); 
+        if (iNextStates == transitions.end())
+            continue;
+
+        for (State ns : iNextStates->second)
+            if (!accessedStates[ns])
+                closure.push (ns);
+    }
+
+    return false;
 }
 
 template <typename C>
-NFA<C> NFA<C>::notRecogEmptyNFA() const
+FiniteAutomation<C>& FiniteAutomation<C>::excludeEmptyString() 
 {
     if (!recognizeEmptyString())
         return *this;
     
-    NFA neNfa (*this);
+    if (flags & FlagHasEMove)
+        removeEMoves();
 
     std::deque<C> charList;
     for (C c : alphabet)
-//        if (CONTAIN (transitions, std::make_pair (initState, c)))
         if (CONTAIN (transitions, std::make_pair (initState, c)))
             charList.push_back (c);
     
     if (charList.empty()) {
-        neNfa.finishStates.erase (initState);
-        return neNfa;
+        finishStates.erase (initState);
+    } else {
+        State newInitState (states.size() + 1);
+        for (C c : charList)
+            transitions[{newInitState,c}] = {initState};
+        initState = newInitState;
     }
 
-    State newInitState (*std::max_element (states.begin(), states.end()) + 1);
-    neNfa.initState = newInitState;
-    for (C c : charList)
-        neNfa.transitions[{newInitState,c}] = {initState};
-
-    return neNfa;
+    return *this;
 }
 
 
 template <typename C>
-DFA<C>::DFA (Set<std::basic_string<C>> const &code) 
+Set<typename FiniteAutomation<C>::State> 
+FiniteAutomation<C>::eClosure (State s) const
 {
+    if (!(flags & FlagHasEMove))
+        return {s};
 
-    NFA<C> nfa (code);
+    Set<State> result;
 
+    std::queue<State> nextStates;
+    nextStates.push (s);
 
-    // construct DFA
-    //
+    std::vector<bool> accessedStates (states.size(), false);
 
-    // DFA alphabet
-    alphabet = nfa.alphabet;
+    while (!nextStates.empty()) {
+        State ns = nextStates.front();
+        nextStates.pop();
+        accessedStates[ns] = true;
+        result.insert (ns);
 
-    // DFA initState
-    initState = nfa.initState;
-    states.insert (initState);
-
-    // DFA transitions && state
-    std::queue<State> openSet;
-
-    openSet.push (initState);
-
-    Map<State, Set<State>> unitStates;
-    unitStates[initState] = { initState };
-
-    int iStateCount = nfa.states.size();
-    int goto_initState = 0;
-    while (!openSet.empty()) {
-        auto currentState = openSet.front();
-        openSet.pop();
-
-        for (auto &c : alphabet) {
-            goto_initState = 0;
-
-            Set<State> nextStates;
-
-            for (auto &s : unitStates[currentState]) {
-                auto iNTranst = nfa.transitions.find ({s, c});
-                if (iNTranst == nfa.transitions.end())
-                    continue;
-                auto &nextNfaStates = iNTranst->second;
-                if (CONTAIN(nextNfaStates, 0))
-                    if (++goto_initState == 2)
-                        goto _exit;
-
-//                if (!CONTAIN(transitions, {currentState,c})) {
-//                    states.insert (++iStateCount);
-//                    openSet.push (iStateCount);
-//                    transitions[{currentState, c}] = iStateCount;
-//                    unitStates [iStateCount] = {};
-//                }
-//                unitStates[transitions[{currentState,c}]]
-//                                .insert (nextStates.begin(), nextStates.end());
-
-                nextStates.insert (nextNfaStates.begin(), nextNfaStates.end());
-            }
-
-            if (nextStates.empty())
-                continue;
-            else if (nextStates.size() == 1) {
-                State s = *nextStates.begin();
-                states.insert (s);
-                transitions[{currentState,c}] = s;
-                if (!CONTAIN (unitStates, s)) {
-                    unitStates[s] = { s };
-                    openSet.push (s);
-                }
-            } else {
-
-                bool foundOldState = false;
-                for (int s = nfa.states.size(); s != iStateCount; ++s) {
-                    if (unitStates[s] == nextStates) {
-                        transitions[{currentState,c}] = s;
-                        foundOldState = true;
-                        break;
-                    }
-                }
-
-                if (!foundOldState) {
-                    states.insert (iStateCount);
-                    transitions[{currentState,c}] = iStateCount;
-                    unitStates[iStateCount] = std::move (nextStates);
-                    openSet.push (iStateCount);
-                    ++iStateCount;
-                }
-            }
+        auto iNext = transitions.find ({ns, empty_letter});
+        if (iNext == transitions.end())
+            continue;
+        for (State nns : iNext->second) {
+            if (!accessedStates[nns])
+                nextStates.push (nns);
         }
     }
 
-_exit:
-    
-    if (goto_initState == 2)
-        throw "Ambiguous";
-
-    //
-    // Finish states
-
-    for (State s : states)
-        if (CONTAIN (unitStates[s], initState))
-            finishStates.insert (s);
+    return result;
 }
 
-
 template <typename C>
-DFA<C>::DFA (NFA<C> const &nfa)
+Set<typename FiniteAutomation<C>::State> 
+FiniteAutomation<C>::eClosure (Set<typename FiniteAutomation<C>::State> const &ss) const
 {
-    // construct DFA
-    //
-
-    // DFA alphabet
-    alphabet = nfa.alphabet;
-
-    // DFA initState
-    initState = nfa.initState;
-    states.insert (initState);
-
-    // DFA transitions && state
-    std::queue<State> openSet;
-
-    openSet.push (initState);
-
-    Map<State, Set<State>> unitStates;
-    unitStates[initState] = { initState };
-
-    int maxStateVal = *std::max_element (nfa.states.begin(), nfa.states.end());
-    int iStateCount = maxStateVal + 1;
-    while (!openSet.empty()) {
-        auto currentState = openSet.front();
-        openSet.pop();
-
-        for (auto &c : alphabet) {
-            Set<State> nextStates;
-
-            for (auto &s : unitStates[currentState]) {
-                auto iNTranst = nfa.transitions.find ({s, c});
-                if (iNTranst == nfa.transitions.end())
-                    continue;
-                auto &nextNfaStates = iNTranst->second;
-                nextStates.insert (nextNfaStates.begin(), nextNfaStates.end());
-            }
-
-            if (nextStates.empty())
-                continue;
-            else if (nextStates.size() == 1) {
-                State s = *nextStates.begin();
-                states.insert (s);
-                transitions[{currentState,c}] = s;
-                if (!CONTAIN (unitStates, s)) {
-                    unitStates[s] = { s };
-                    openSet.push (s);
-                }
-            } else {
-
-                bool foundOldState = false;
-                for (int s = maxStateVal + 1; s != iStateCount; ++s) {
-                    if (unitStates[s] == nextStates) {
-                        transitions[{currentState,c}] = s;
-                        foundOldState = true;
-                        break;
-                    }
-                }
-
-                if (!foundOldState) {
-                    states.insert (iStateCount);
-                    transitions[{currentState,c}] = iStateCount;
-                    unitStates[iStateCount] = std::move (nextStates);
-                    openSet.push (iStateCount);
-                    ++iStateCount;
-                }
-            }
-        }
+    Set<State> result;
+    for (State s : ss) {
+        Set<State> ec = eClosure (s);
+        result.insert (ec.begin(), ec.end());
     }
-
-
-    //
-    // Finish states
-
-    for (State s : states)
-        for (State f : nfa.finishStates)
-            if (CONTAIN (unitStates[s], f)) {
-                finishStates.insert (s);
-                break;
-            }
+    return result;
 }
 
 template <typename C>
-DFA<C>& DFA<C>::removeInAccessibleStates()
+FiniteAutomation<C>& FiniteAutomation<C>::removeEMoves()
 {
-    Map<State, Set<State>> nextStates;
+    if (!(flags & FlagHasEMove))
+        return *this;
+
+    //
+    // transtsFrom table
+
+    std::vector<std::deque<std::pair<C, Set<State>>>> transtsFrom (states.size());
     for (auto &transt : transitions)
-        nextStates[transt->first.first].insert (transitions.second);
+        transtsFrom[transt.first.first]
+                .push_back ({transt.first.second, transt.second});
+
+
+    typedef std::tuple<State, C, State> UnitTransition; 
+
+    std::deque<UnitTransition> newTransitions;
+    std::queue<UnitTransition> W;
     
+    Set<UnitTransition> oldTransitions;
+
+    //
+    // add shortcuts
+
+    State q1, q2;
+    char c;
+    while (!W.empty()) {
+        auto t = W.front();
+        W.pop();
+
+        if (CONTAIN (oldTransitions, t))
+            continue;
+        oldTransitions.insert (t);
+
+        std::tie (q1, c, q2) = t;
+
+        if (c != empty_letter) {
+            for (auto &tf : transtsFrom[q2]) {
+                if (tf.first == empty_letter) {
+                    // find all (q2, epsilon, q3)
+                    for (auto q3 : tf.second) {
+                        W.push (std::make_tuple (q1, c, q3));
+                        transitions[{q1, c}].insert (q3);
+                    } 
+
+                } else {
+                    // find all (q2, a, q3)
+                    for (auto q3 : tf.second)
+                        // old normal transitions, don't add to newTransitions
+                        W.push (std::make_tuple (q1, c, q3));
+                }
+            } 
+
+        } else {
+            if (CONTAIN (finishStates, q2))
+                finishStates.insert (q1);
+
+            for (auto &tf : transtsFrom[q2]) {
+                if (tf.first == empty_letter) {
+                    for (auto q3 : tf.second)
+                        W.push (std::make_tuple (q1, empty_letter, q3));
+                } else {
+                    for (auto q3 : tf.second) {
+                        W.push (std::make_tuple (q1, tf.first, q3));
+                        transitions[{q1, tf.first}].insert (q3);
+                    }
+                }
+            }
+        }
+    }
+
+
+    //
+    // remove empty moves
+
+    for (auto s : states) {
+        auto iEMoves = transitions.find ({s, empty_letter});
+        if (iEMoves != transitions.end())
+            transitions.erase (iEMoves);
+    }
+
+    flags |= ~FlagHasEMove;
+
+    return *this;
+}
+
+
+template <typename C>
+FiniteAutomation<C>& FiniteAutomation<C>::normalizeStateIndex()
+{
+    Map<State, State> newIndex;
+    decltype(states) newStates;
+    State ni = 0;
+    for (State s : states) {
+        newIndex[s] = ni;
+        newStates.insert (ni++);
+    }
+    states = std::move (newStates);
+
+    initState = newIndex[initState];
+
+    decltype(finishStates) newFinishStates;
+    for (State s : finishStates) 
+        newFinishStates.insert (newIndex[s]);
+    finishStates = std::move (newFinishStates);
+
+    decltype(transitions) newTransitions;
+    for (auto &transts : transitions) {
+//        typename std::decay<decltype(transts)>::type newTransts;
+        Transition newTransts;
+        newTransts.first.first = newIndex[transts.first.first];
+        for (State ns : transts.second)
+            newTransts.second.insert (newIndex[ns]);
+        newTransitions.insert (newTransts);
+    }
+    transitions = std::move (newTransitions);
+
+    return *this;
+}
+
+template <typename C>
+FiniteAutomation<C>& FiniteAutomation<C>::removeInAccessibleStates()
+{
+    if (flags & FlagAcceccable)
+        return *this;
+
+    std::vector<Set<State>> nextStates (states.size());
+    for (auto &transt : transitions)
+        nextStates[transt.first.first]
+                    .insert (transt.second.begin(), transt.second.end());
+
 
     //
     // remove inaccessible states
 
-    std::queue<State> statesQueue = { initState };
+    std::queue<State> statesQueue;
+    statesQueue.push (initState);
     Set<State> accessibleStates = { initState };
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
@@ -310,7 +331,7 @@ DFA<C>& DFA<C>::removeInAccessibleStates()
         accessibleStates.insert (s);
         for (State ns : nextStates[s])
             if (!CONTAIN (accessibleStates, ns))
-                statesQueue.insert (ns);
+                statesQueue.push (ns);
     }
 
     // remove inaccessible path
@@ -330,16 +351,23 @@ DFA<C>& DFA<C>::removeInAccessibleStates()
     transitions = std::move (newTransitions);
     states = std::move (accessibleStates);
 
+    normalizeStateIndex();
+
+    flags |= FlagAcceccable;
+
     return *this;
 }
 
 template <typename C>
-DFA<C>& DFA<C>::removeNotCoaccessibleStates()
+FiniteAutomation<C>& FiniteAutomation<C>::removeNotCoaccessibleStates()
 {
-    Map<State, Set<State>> prevStates;
+    if (flags & FlagCoacceccable)
+        return *this;
+
+    std::vector<Set<State>> prevStates (states.size());
     for (auto &transt : transitions)
-        prevStates[transt.second].insert (transt.first.first);
-    
+        for (auto ps : transt.second)
+            prevStates[ps].insert (transt.first.first);
 
     //
     // remove not-coaccessible states
@@ -347,7 +375,7 @@ DFA<C>& DFA<C>::removeNotCoaccessibleStates()
     std::queue<State> statesQueue;
     for (State f : finishStates) statesQueue.push (f);
 
-    Set<State> coaccessibleStates = finishStates;
+    Set<State> coaccessibleStates = {finishStates};
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
         statesQueue.pop();
@@ -360,9 +388,15 @@ DFA<C>& DFA<C>::removeNotCoaccessibleStates()
     // remove not-coaccessible path
     decltype(transitions) newTransitions;
     for (auto &transt : transitions) {
-        if (CONTAIN (coaccessibleStates, transt.first.first)
-             && CONTAIN (coaccessibleStates, transt.second))
-            newTransitions.insert (transt);
+        if (CONTAIN (coaccessibleStates, transt.first.first)) {
+            std::pair<std::pair<State,C>, Set<State>> newTranst;
+            newTranst.first = transt.first;
+            for (State ns : transt.second)
+                if (CONTAIN (coaccessibleStates, ns))
+                    newTranst.second.insert (ns);
+            if (!newTranst.second.empty())
+                newTransitions.insert (newTranst);
+        }
     }
 
     if (!CONTAIN (coaccessibleStates, initState))
@@ -371,22 +405,218 @@ DFA<C>& DFA<C>::removeNotCoaccessibleStates()
     transitions = std::move (newTransitions);
     states = std::move (coaccessibleStates);
 
+    normalizeStateIndex();
+
     return *this;
 }
 
+
+/* template <typename C>
+ * DFA<C>::DFA (Set<std::basic_string<C>> const &code) 
+ * {
+ * 
+ *     NFA<C> nfa (code);
+ * 
+ * 
+ *     // construct DFA
+ *     //
+ * 
+ *     // DFA alphabet
+ *     alphabet = nfa.alphabet;
+ * 
+ *     // DFA initState
+ *     initState = nfa.initState;
+ *     states.insert (initState);
+ * 
+ *     // DFA transitions && state
+ *     std::queue<State> openSet;
+ * 
+ *     openSet.push (initState);
+ * 
+ *     Map<State, Set<State>> unitStates;
+ *     unitStates[initState] = { initState };
+ * 
+ *     int iStateCount = nfa.states.size();
+ *     int goto_initState = 0;
+ *     while (!openSet.empty()) {
+ *         auto currentState = openSet.front();
+ *         openSet.pop();
+ * 
+ *         for (auto &c : alphabet) {
+ *             goto_initState = 0;
+ * 
+ *             Set<State> nextStates;
+ * 
+ *             for (auto &s : unitStates[currentState]) {
+ *                 auto iNTranst = nfa.transitions.find ({s, c});
+ *                 if (iNTranst == nfa.transitions.end())
+ *                     continue;
+ *                 auto &nextNfaStates = iNTranst->second;
+ *                 if (CONTAIN(nextNfaStates, 0))
+ *                     if (++goto_initState == 2)
+ *                         goto _exit;
+ * 
+ * //                if (!CONTAIN(transitions, {currentState,c})) {
+ * //                    states.insert (++iStateCount);
+ * //                    openSet.push (iStateCount);
+ * //                    transitions[{currentState, c}] = iStateCount;
+ * //                    unitStates [iStateCount] = {};
+ * //                }
+ * //                unitStates[transitions[{currentState,c}]]
+ * //                                .insert (nextStates.begin(), nextStates.end());
+ * 
+ *                 nextStates.insert (nextNfaStates.begin(), nextNfaStates.end());
+ *             }
+ * 
+ *             if (nextStates.empty())
+ *                 continue;
+ *             else if (nextStates.size() == 1) {
+ *                 State s = *nextStates.begin();
+ *                 states.insert (s);
+ *                 transitions[{currentState,c}] = s;
+ *                 if (!CONTAIN (unitStates, s)) {
+ *                     unitStates[s] = { s };
+ *                     openSet.push (s);
+ *                 }
+ *             } else {
+ * 
+ *                 bool foundOldState = false;
+ *                 for (int s = nfa.states.size(); s != iStateCount; ++s) {
+ *                     if (unitStates[s] == nextStates) {
+ *                         transitions[{currentState,c}] = s;
+ *                         foundOldState = true;
+ *                         break;
+ *                     }
+ *                 }
+ * 
+ *                 if (!foundOldState) {
+ *                     states.insert (iStateCount);
+ *                     transitions[{currentState,c}] = iStateCount;
+ *                     unitStates[iStateCount] = std::move (nextStates);
+ *                     openSet.push (iStateCount);
+ *                     ++iStateCount;
+ *                 }
+ *             }
+ *         }
+ *     }
+ * 
+ * _exit:
+ *     
+ *     if (goto_initState == 2)
+ *         throw "Ambiguous";
+ * 
+ *     //
+ *     // Finish states
+ * 
+ *     for (State s : states)
+ *         if (CONTAIN (unitStates[s], initState))
+ *             finishStates.insert (s);
+ * }
+ * 
+ */
+
+/* template <typename C>
+ * DFA<C>::DFA (NFA<C> const &nfa)
+ * {
+ *     // construct DFA
+ *     //
+ * 
+ *     // DFA alphabet
+ *     alphabet = nfa.alphabet;
+ * 
+ *     // DFA initState
+ *     initState = nfa.initState;
+ *     states.insert (initState);
+ * 
+ *     // DFA transitions && state
+ *     std::queue<State> openSet;
+ * 
+ *     openSet.push (initState);
+ * 
+ *     Map<State, Set<State>> unitStates;
+ *     unitStates[initState] = { initState };
+ * 
+ *     int maxStateVal = *std::max_element (nfa.states.begin(), nfa.states.end());
+ *     int iStateCount = maxStateVal + 1;
+ *     while (!openSet.empty()) {
+ *         auto currentState = openSet.front();
+ *         openSet.pop();
+ * 
+ *         for (auto &c : alphabet) {
+ *             Set<State> nextStates;
+ * 
+ *             for (auto &s : unitStates[currentState]) {
+ *                 auto iNTranst = nfa.transitions.find ({s, c});
+ *                 if (iNTranst == nfa.transitions.end())
+ *                     continue;
+ *                 auto &nextNfaStates = iNTranst->second;
+ *                 nextStates.insert (nextNfaStates.begin(), nextNfaStates.end());
+ *             }
+ * 
+ *             if (nextStates.empty())
+ *                 continue;
+ *             else if (nextStates.size() == 1) {
+ *                 State s = *nextStates.begin();
+ *                 states.insert (s);
+ *                 transitions[{currentState,c}] = s;
+ *                 if (!CONTAIN (unitStates, s)) {
+ *                     unitStates[s] = { s };
+ *                     openSet.push (s);
+ *                 }
+ *             } else {
+ * 
+ *                 bool foundOldState = false;
+ *                 for (int s = maxStateVal + 1; s != iStateCount; ++s) {
+ *                     if (unitStates[s] == nextStates) {
+ *                         transitions[{currentState,c}] = s;
+ *                         foundOldState = true;
+ *                         break;
+ *                     }
+ *                 }
+ * 
+ *                 if (!foundOldState) {
+ *                     states.insert (iStateCount);
+ *                     transitions[{currentState,c}] = iStateCount;
+ *                     unitStates[iStateCount] = std::move (nextStates);
+ *                     openSet.push (iStateCount);
+ *                     ++iStateCount;
+ *                 }
+ *             }
+ *         }
+ *     }
+ * 
+ * 
+ *     //
+ *     // Finish states
+ * 
+ *     for (State s : states)
+ *         for (State f : nfa.finishStates)
+ *             if (CONTAIN (unitStates[s], f)) {
+ *                 finishStates.insert (s);
+ *                 break;
+ *             }
+ * }
+ * 
+ */
+
 template <typename C>
-DFA<C>& DFA<C>::trim()
+FiniteAutomation<C>& FiniteAutomation<C>::trim()
 {
     return removeNotCoaccessibleStates (removeInAccessibleStates());
 }
 
-template <typename C>
-bool operator== (DFA<C> const &dfa1, DFA<C> const &dfa2)
-{
-    DFA<C> td1 = dfa1; td1.removeNotCoaccessibleStates();
-    DFA<C> td2 = dfa2; td2.removeNotCoaccessibleStates();
 
-    typedef typename DFA<C>::State State;
+template <typename C>
+bool operator== (FiniteAutomation<C> const &dfa1, FiniteAutomation<C> const &dfa2)
+{
+    FiniteAutomation<C> td1 = dfa1; 
+    td1.removeNotCoaccessibleStates();
+    td1.removeEMoves();
+    FiniteAutomation<C> td2 = dfa2; 
+    td2.removeNotCoaccessibleStates();
+    td2.removeEMoves();
+
+    typedef typename FiniteAutomation<C>::State State;
     typedef std::pair<State, State> StatePair;
     std::queue<StatePair> pairsQueue;
     pairsQueue.push ({td1.initState, td2.initState});
@@ -418,9 +648,12 @@ bool operator== (DFA<C> const &dfa1, DFA<C> const &dfa2)
                 if (t2 == transts2.end())
                     return false;
                 else {
-                    StatePair np = { t1->second, t2->second };
-                    if (!CONTAIN (oldPairs, np))
-                        pairsQueue.push (np);
+                    for (State ns1 : t1->second)
+                        for (State ns2 : t2->second) {
+                            StatePair np = { ns1, ns2 };
+                            if (!CONTAIN (oldPairs, np))
+                                pairsQueue.push (np);
+                        }
                 }
             }
         }
