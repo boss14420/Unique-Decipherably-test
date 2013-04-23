@@ -300,7 +300,7 @@ FiniteAutomation& FiniteAutomation::normalizeStateIndex()
 
 FiniteAutomation& FiniteAutomation::removeInAccessibleStates()
 {
-    if (flags & FlagCoacceccable)
+    if (flags & FlagCoaccessible)
         return *this;
 
     std::vector<Set<State>> nextStates (states.size());
@@ -350,14 +350,14 @@ FiniteAutomation& FiniteAutomation::removeInAccessibleStates()
 
     normalizeStateIndex();
 
-    flags |= FlagAcceccable;
+    flags |= FlagAccessible;
 
     return *this;
 }
 
 FiniteAutomation& FiniteAutomation::removeNotCoaccessibleStates()
 {
-    if (flags & FlagCoacceccable)
+    if (flags & FlagCoaccessible)
         return *this;
 
     std::vector<Set<State>> prevStates (states.size());

@@ -55,8 +55,8 @@ int main (int argc, char *argv[])
         }},
         static_cast<typename FiniteAutomation::FAFlag> (
             FiniteAutomation::FlagNFA 
-            | FiniteAutomation::FlagAcceccable
-            | FiniteAutomation::FlagCoacceccable
+            | FiniteAutomation::FlagAccessible
+            | FiniteAutomation::FlagCoaccessible
         )
     );
     
@@ -77,8 +77,8 @@ int main (int argc, char *argv[])
         },
         static_cast<typename FiniteAutomation::FAFlag> (
             FiniteAutomation::FlagNFA 
-            | FiniteAutomation::FlagAcceccable
-            | FiniteAutomation::FlagCoacceccable
+            | FiniteAutomation::FlagAccessible
+            | FiniteAutomation::FlagCoaccessible
         )
     );
 
