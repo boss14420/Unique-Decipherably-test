@@ -137,10 +137,11 @@ FiniteAutomation& FiniteAutomation::excludeEmptyString()
     if (charList.empty()) {
         finishStates.erase (initState);
     } else {
-        State newInitState (states.size() + 1);
+        State newInitState (states.size());
         for (C c : charList)
             transitions[{newInitState,c}] = {initState};
         initState = newInitState;
+        states.insert (newInitState);
     }
 
     return *this;
@@ -269,7 +270,7 @@ FiniteAutomation& FiniteAutomation::removeEMoves()
             transitions.erase (iEMoves);
     }
 
-    flags |= ~FlagHasEMove;
+    flags &= ~FlagHasEMove;
 
     return *this;
 }
@@ -277,7 +278,11 @@ FiniteAutomation& FiniteAutomation::removeEMoves()
 
 FiniteAutomation& FiniteAutomation::normalizeStateIndex()
 {
-    Map<State, State> newIndex;
+    State maxIndex = *std::max_element (states.begin(), states.end());
+    if (maxIndex == states.size())
+        return *this;
+
+    std::vector<State> newIndex (maxIndex);
     decltype(states) newStates;
     State ni = 0;
     for (State s : states) {
@@ -686,6 +691,9 @@ bool operator== (FiniteAutomation const &dfa1, FiniteAutomation const &dfa2)
     FiniteAutomation td2 = dfa2; 
     td2.removeNotCoaccessibleStates();
     td2.removeEMoves();
+
+    // TODO
+    // Test if use same alphabet
 
     typedef FiniteAutomation::State State;
     typedef FiniteAutomation::C C;
