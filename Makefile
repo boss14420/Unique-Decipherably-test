@@ -1,5 +1,5 @@
-#all: udtest-automata udtest-tail automata-test
-all: automata-test
+all: udtest-automata udtest-tail automata-test
+#all: automata-test
 
 CXX = clang++
 CXXFLAGS = -g -Wall -Wno-mismatched-tags -std=c++11

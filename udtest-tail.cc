@@ -49,15 +49,7 @@ bool is_ud (Set<std::string> const &code) {
                 if (!v.empty()) {
                     if (code.find (v) != code.end())
                         return false;
-
-                    bool old_tail = false;
-                    for (int j = 1; j < i; ++j)
-                        if (S[j].find (v) != S[j].end()) {
-                            old_tail = true;
-                            break;
-                        }
-
-                    if (!old_tail)
+                    else
                         S[i].insert (v);
                 }
             }
