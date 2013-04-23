@@ -113,6 +113,14 @@ bool FiniteAutomation::recognizeEmptyString() const
     return false;
 }
 
+bool FiniteAutomation::isEmpty() const
+{
+    // TODO when not coaccessible
+
+
+    return (flags & FlagCoaccessible) && finishStates.empty();
+}
+
 FiniteAutomation& FiniteAutomation::excludeEmptyString() 
 {
     if (!recognizeEmptyString())
@@ -601,8 +609,77 @@ FiniteAutomation& FiniteAutomation::trim()
 }
 
 
+FiniteAutomation& FiniteAutomation::cutByPrefix (FiniteAutomation const &prefix)
+{
+    removeEMoves();
+
+    typedef std::pair<State, State> StatePair;
+    std::queue<StatePair> pairsQueue;
+    pairsQueue.push ({initState, prefix.initState});
+    Set<StatePair> oldPairs;
+    std::deque<State> cutPoints;
+
+    auto &pTransitions = prefix.transitions;
+
+    while (!pairsQueue.empty()) {
+        auto p = pairsQueue.front();
+        pairsQueue.pop();
+        oldPairs.insert (p);
+
+        if (CONTAIN (prefix.finishStates, p.second))
+            cutPoints.push_back (p.first);
+
+        for (C c : prefix.alphabet) {
+            auto t1 = transitions.find ({p.first, c}); 
+            auto t2 = pTransitions.find ({p.second, c});
+
+            if (t1 == transitions.end() || t2 == pTransitions.end())
+                continue;
+            
+            for (State ns1 : t1->second)
+                for (State ns2 : t2->second) {
+                    StatePair np {ns1, ns2};
+                    if (!CONTAIN (oldPairs, np))
+                        pairsQueue.push (np);
+                }
+        }
+    }
+
+    if (cutPoints.empty())
+        return (*this = FiniteAutomation());
+    
+    if (cutPoints.size() == 1) {
+        if (*cutPoints.begin() != initState) {
+            initState = *cutPoints.begin();
+            flags &= ~FlagAccessible;
+        }
+        return *this;
+    }
+
+    //
+    // if >= 2 cutPoints, add new initState
+
+    State newInitState (states.size());
+    states.insert (newInitState);
+    for (State s : cutPoints) {
+        if (CONTAIN (finishStates, s))
+            finishStates.insert (newInitState);
+
+        for (C c : alphabet) {
+            auto iNextStates = transitions.find ({s, c});
+            if (iNextStates != transitions.end())
+                for (State ns : iNextStates->second)
+                    transitions[{newInitState, c}].insert (ns);
+        }
+    }
+    initState = newInitState;
+    flags = (flags & ~FlagAccessible & ~FlagDFA) | FlagNFA;
+    return *this;
+}
+
 bool operator== (FiniteAutomation const &dfa1, FiniteAutomation const &dfa2)
 {
+
     FiniteAutomation td1 = dfa1; 
     td1.removeNotCoaccessibleStates();
     td1.removeEMoves();

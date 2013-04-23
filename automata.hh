@@ -48,16 +48,19 @@ public:
     static const FAFlag FlagDFA = 1;
     static const FAFlag FlagNFA = 2;
     static const FAFlag FlagHasEMove = 4;
-    static const FAFlag FlagAcceccable = 8;
-    static const FAFlag FlagCoacceccable = 16;
+    static const FAFlag FlagAccessible = 8;
+    static const FAFlag FlagCoaccessible = 16;
 
 //    enum FAFlag { FlagDFA = 1, FlagNFA = 2, FlagHasEMove = 4, 
-//                  FlagAcceccable = 8, FlagCoacceccable = 16 };
+//                  FlagAccessible = 8, FlagCoaccessible = 16 };
 
     typedef std::pair<std::pair<State, C>, Set<State>> Transition;
 
 public:
-    FiniteAutomation() = default;
+    FiniteAutomation() 
+        : states ({0}), initState (0),
+          flags (FlagDFA | FlagAccessible | FlagCoaccessible)
+    {}
 
     FiniteAutomation (std::vector<C> const& alphabet, Set<State> const &states, 
                       State initState, Set<State> const &finishStates,
@@ -79,12 +82,15 @@ public:
 
 public:
     bool recognizeEmptyString() const;
+    bool isEmpty() const;
 
     FiniteAutomation& excludeEmptyString();
     FiniteAutomation& removeEMoves();
     FiniteAutomation& removeInAccessibleStates();
     FiniteAutomation& removeNotCoaccessibleStates();
     FiniteAutomation& trim();
+
+    FiniteAutomation& cutByPrefix (FiniteAutomation const& prefix);
 
     friend 
     bool operator== (FiniteAutomation const&, FiniteAutomation const&);
