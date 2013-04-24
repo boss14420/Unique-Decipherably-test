@@ -231,16 +231,17 @@ FiniteAutomaton& FiniteAutomaton::excludeEmptyString()
     if (flags & FlagHasEMove)
         removeEMoves();
 
-    std::deque<C> charList;
+    std::deque<C> charsToInitState;
     for (C c : alphabet)
-        if (CONTAIN (transitions, std::make_pair (initState, c)))
-            charList.push_back (c);
+        if (CONTAIN (transitions, std::make_pair (initState, c))
+                && CONTAIN ((transitions[{initState, c}]), initState))
+            charsToInitState.push_back (c);
     
-    if (charList.empty()) {
+    if (charsToInitState.empty()) {
         finishStates.erase (initState);
     } else {
         State newInitState (states.size());
-        for (C c : charList)
+        for (C c : charsToInitState)
             transitions[{newInitState,c}] = {initState};
         initState = newInitState;
         states.insert (newInitState);
@@ -309,7 +310,10 @@ FiniteAutomaton& FiniteAutomaton::removeEMoves()
 
     std::deque<UnitTransition> newTransitions;
     std::queue<UnitTransition> W;
-    
+    for (auto &tf : transtsFrom[initState])
+        for (State ns : tf.second)
+            W.push (std::make_tuple (initState, tf.first, ns));
+
     Set<UnitTransition> oldTransitions;
 
     //
@@ -439,7 +443,25 @@ FiniteAutomaton& FiniteAutomaton::removeInAccessibleStates()
                 statesQueue.push (ps);
     }
 
-    // remove inaccessible path
+    // remove inaccessible states' paths
+    auto iTranst = transitions.begin();
+    while (iTranst != transitions.end()) {
+        if (!CONTAIN (accessibleStates, iTranst->first.first)) {
+            iTranst = transitions.erase (iTranst);
+        } else {
+            auto &nextStates = iTranst->second;
+            auto iNextStates = nextStates.begin();
+            while (iNextStates != nextStates.end()) {
+                if (!CONTAIN (accessibleStates, *iNextStates))
+                    iNextStates = nextStates.erase (iNextStates);
+                else
+                    ++iNextStates;
+            }
+            ++iTranst;
+        }
+    }
+
+
     decltype(transitions) newTransitions;
     for (auto &transt : transitions) {
         if (CONTAIN (accessibleStates, transt.first.first)) {
@@ -496,28 +518,37 @@ FiniteAutomaton& FiniteAutomaton::removeNotCoaccessibleStates()
                 statesQueue.push (ps);
     }
 
-    // remove not-coaccessible path
-    decltype(transitions) newTransitions;
-    for (auto &transt : transitions) {
-        if (CONTAIN (coaccessibleStates, transt.first.first)) {
-            Transition newTranst;
-            newTranst.first = transt.first;
-            for (State ns : transt.second)
-                if (CONTAIN (coaccessibleStates, ns))
-                    newTranst.second.insert (ns);
-            if (!newTranst.second.empty())
-                newTransitions.insert (newTranst);
+    if (coaccessibleStates.size() == states.size()) {
+        flags |= FlagCoaccessible;
+        return *this;
+    }
+
+    // remove not-coaccessible states' paths
+    auto iTranst = transitions.begin();
+    while (iTranst != transitions.end()) {
+        if (!CONTAIN (coaccessibleStates, iTranst->first.first)) {
+            iTranst = transitions.erase (iTranst);
+        } else {
+            auto &nextStates = iTranst->second;
+            auto iNextStates = nextStates.begin();
+            while (iNextStates != nextStates.end()) {
+                if (!CONTAIN (coaccessibleStates, *iNextStates))
+                    iNextStates = nextStates.erase (iNextStates);
+                else
+                    ++iNextStates;
+            }
+            ++iTranst;
         }
     }
 
     if (!CONTAIN (coaccessibleStates, initState))
         initState = invalid_state;
 
-    transitions = std::move (newTransitions);
     states = std::move (coaccessibleStates);
 
     normalizeStateIndex();
-
+    
+    flags |= FlagCoaccessible;
     return *this;
 }
 
@@ -710,31 +741,31 @@ FiniteAutomaton& FiniteAutomaton::removeNotCoaccessibleStates()
  * 
  */
 
-FiniteAutomation& FiniteAutomation::trim()
+FiniteAutomaton& FiniteAutomaton::trim()
 {
     return removeNotCoaccessibleStates().removeInAccessibleStates();
 }
 
 
-FiniteAutomation& FiniteAutomation::cutByPrefix (FiniteAutomation const &prefix)
+FiniteAutomaton& FiniteAutomaton::cutByPrefix (FiniteAutomaton prefix)
 {
     removeEMoves();
+    prefix.removeEMoves();
 
     typedef std::pair<State, State> StatePair;
     std::queue<StatePair> pairsQueue;
     pairsQueue.push ({initState, prefix.initState});
-    Set<StatePair> oldPairs;
-    std::deque<State> cutPoints;
+    Set<StatePair> oldPairs { {initState, initState} };
+    Set<State> cutPoints;
 
     auto &pTransitions = prefix.transitions;
 
     while (!pairsQueue.empty()) {
         auto p = pairsQueue.front();
         pairsQueue.pop();
-        oldPairs.insert (p);
 
         if (CONTAIN (prefix.finishStates, p.second))
-            cutPoints.push_back (p.first);
+            cutPoints.insert (p.first);
 
         for (C c : prefix.alphabet) {
             auto t1 = transitions.find ({p.first, c}); 
@@ -746,14 +777,16 @@ FiniteAutomation& FiniteAutomation::cutByPrefix (FiniteAutomation const &prefix)
             for (State ns1 : t1->second)
                 for (State ns2 : t2->second) {
                     StatePair np {ns1, ns2};
-                    if (!CONTAIN (oldPairs, np))
+                    if (!CONTAIN (oldPairs, np)) {
                         pairsQueue.push (np);
+                        oldPairs.insert (np);
+                    }
                 }
         }
     }
 
     if (cutPoints.empty())
-        return (*this = FiniteAutomation());
+        return (*this = FiniteAutomaton());
     
     if (cutPoints.size() == 1) {
         if (*cutPoints.begin() != initState) {

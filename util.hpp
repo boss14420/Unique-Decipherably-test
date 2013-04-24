@@ -1,6 +1,10 @@
 #include <utility>
 #include <tuple>
 #include <functional>
+#include <fstream>
+
+#ifndef _UTIL_HPP_
+#define _UTIL_HPP_
 
 namespace std {
 
@@ -13,7 +17,7 @@ namespace std {
 
         public:
             size_t operator() (size_t seed, T const &t) const {
-                return seed ^ ht (t) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                return (seed ^ ht (t)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             }
         };
 
@@ -69,3 +73,7 @@ namespace std {
             }
         };
 }
+
+
+
+#endif // _UTIL_HPP_
