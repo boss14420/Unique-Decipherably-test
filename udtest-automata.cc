@@ -41,9 +41,10 @@
 * 
 */
 
-bool is_ud (FiniteAutomation const &code) {
-    std::deque<FiniteAutomation> S, SS;
-    FiniteAutomation fa = code;
+bool is_ud (FiniteAutomaton code) {
+    std::deque<FiniteAutomaton> S, SS;
+    code.removeEMoves();
+    FiniteAutomaton fa = code;
     fa.cutByPrefix (code).excludeEmptyString();
 
     S.push_back (fa), SS.push_back(fa);
@@ -52,12 +53,12 @@ bool is_ud (FiniteAutomation const &code) {
 
         //
         // calculate S1 = S^-1 code U code^-1 S
-        std::deque<FiniteAutomation> S1;
+        std::deque<FiniteAutomaton> S1;
         for (auto fa : S) {
             if (fa.recognizeEmptyString())
                 return false;
 
-            FiniteAutomation code0 = code;
+            FiniteAutomaton code0 = code;
             if (!code0.cutByPrefix (fa).isEmpty())
                 S1.push_back (code0);
             if (!fa.cutByPrefix (code).isEmpty())
@@ -80,27 +81,10 @@ bool is_ud (FiniteAutomation const &code) {
     return true;
 }
 
-
-char *read_file (char const *filename) {
-    std::ifstream file (filename, std::ios::in | std::ios::binary | std::ios::ate);
-    if (file.is_open()) {
-        std::size_t size = file.tellg();
-        char *contents = new char[size];
-        file.seekg (0, std::ios::beg);
-        file.read (contents, size);
-        file.close ();
-
-        return contents;
-    }
-
-    return NULL;
-}
-
-
 int main (int argc, char *argv[]) {
     
     // code = ab*
-/*     FiniteAutomation code (
+/*     FiniteAutomaton code (
  *         // alphabet
  *         {{ 'a', 'b' }},
  *         // states
@@ -115,13 +99,13 @@ int main (int argc, char *argv[]) {
  *             {{1, 'b'}, {1}}
  *         },
  *         // flags
- *         FiniteAutomation::FlagDFA | FiniteAutomation::FlagAccessible
- *         | FiniteAutomation::FlagCoaccessible
+ *         FiniteAutomaton::FlagDFA | FiniteAutomaton::FlagAccessible
+ *         | FiniteAutomaton::FlagCoaccessible
  *     );
  */
 
     // code = a*ba*
-/*     FiniteAutomation code (
+/*     FiniteAutomaton code (
  *         // alphabet
  *         {{ 'a', 'b' }},
  *         // states
@@ -137,12 +121,12 @@ int main (int argc, char *argv[]) {
  *             {{1, 'a'}, {1}}
  *         },
  *         // flags
- *         FiniteAutomation::FlagDFA | FiniteAutomation::FlagAccessible
- *         | FiniteAutomation::FlagCoaccessible
+ *         FiniteAutomaton::FlagDFA | FiniteAutomaton::FlagAccessible
+ *         | FiniteAutomaton::FlagCoaccessible
  *     );
  */
 
-    FiniteAutomation code (read_file (argv[1]));
+    FiniteAutomaton code (argv[1]);
 
     std::cout << is_ud (code) << '\n';
 

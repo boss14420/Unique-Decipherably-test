@@ -43,7 +43,7 @@ private:
 };
 
 
-class FiniteAutomation {
+class FiniteAutomaton {
 public:
     typedef int State;
     typedef char C;
@@ -64,14 +64,14 @@ public:
     typedef std::pair<std::pair<State, C>, Set<State>> Transition;
 
 public:
-    FiniteAutomation() 
+    FiniteAutomaton() 
         : states ({0}), initState (0),
           flags (FlagDFA | FlagAccessible | FlagCoaccessible)
     {}
 
-    FiniteAutomation (char *jflapAutomation);
+    FiniteAutomaton (char const *filename);
 
-    FiniteAutomation (std::vector<C> const& alphabet, Set<State> const &states, 
+    FiniteAutomaton (Set<C> const& alphabet, Set<State> const &states, 
                       State initState, Set<State> const &finishStates,
                       Map<std::pair<State,C>, Set<State>> const &transitions,
                       FAFlag flags)
@@ -80,38 +80,40 @@ public:
                   flags (flags)
     {}
 
-    FiniteAutomation (std::vector<C> const& alphabet, Set<State> const &states, 
+    FiniteAutomaton (Set<C> const& alphabet, Set<State> const &states, 
                       State initState, Set<State> const &finishStates,
                       Map<std::pair<State,C>, Set<State>> const &transitions)
                 : alphabet (alphabet), states (states), initState (initState), 
                   finishStates (finishStates), transitions (transitions)
     {}
 
-    FiniteAutomation (Set<std::basic_string<C>> const &code);
+    FiniteAutomaton (Set<std::basic_string<C>> const &code);
 
 public:
     bool recognizeEmptyString() const;
     bool isEmpty() const;
 
-    FiniteAutomation& excludeEmptyString();
-    FiniteAutomation& removeEMoves();
-    FiniteAutomation& removeInAccessibleStates();
-    FiniteAutomation& removeNotCoaccessibleStates();
-    FiniteAutomation& trim();
+    FiniteAutomaton& excludeEmptyString();
+    FiniteAutomaton& removeEMoves();
+    FiniteAutomaton& removeInAccessibleStates();
+    FiniteAutomaton& removeNotCoaccessibleStates();
+    FiniteAutomaton& trim();
 
-    FiniteAutomation& cutByPrefix (FiniteAutomation const& prefix);
+    FiniteAutomaton& cutByPrefix (FiniteAutomaton prefix);
 
     friend 
-    bool operator== (FiniteAutomation const&, FiniteAutomation const&);
+    bool operator== (FiniteAutomaton const&, FiniteAutomaton const&);
+
+    void writeToXmlFile (char const *filename);
 
 private:
     Set<State> eClosure (State s) const;
     Set<State> eClosure (Set<State> const &ss) const;
     
-    FiniteAutomation& normalizeStateIndex();
+    FiniteAutomaton& normalizeStateIndex();
 
 private:
-    std::vector<C> alphabet;
+    Set<C> alphabet;
     Set<State> states;
     State initState;
     Set<State> finishStates;
@@ -120,12 +122,12 @@ private:
 };
 
 //template <typename C>
-//class DFA : public FiniteAutomation<C> {
+//class DFA : public FiniteAutomaton<C> {
 //public:
-//    using typename FiniteAutomation<C>::State;
+//    using typename FiniteAutomaton<C>::State;
 //    typedef std::pair<std::pair<State, C>, State> Transition;
 //
-//    using FiniteAutomation<C>::invalid_state;
+//    using FiniteAutomaton<C>::invalid_state;
 //
 //public:
 //    DFA() = default;
@@ -135,7 +137,7 @@ private:
 //    DFA (Set<std::basic_string<C>> const &code);
 //
 //public:
-//    using FiniteAutomation<C>::recognizeEmptyString;
+//    using FiniteAutomaton<C>::recognizeEmptyString;
 //
 //    DFA& trim();
 //    DFA& removeInAccessibleStates();
@@ -146,26 +148,26 @@ private:
 //
 //private:
 //    Map<std::pair<State, C>, State> transitions;
-//    using FiniteAutomation<C>::alphabet;
-//    using FiniteAutomation<C>::states;
-//    using FiniteAutomation<C>::initState;
-//    using FiniteAutomation<C>::finishStates;
+//    using FiniteAutomaton<C>::alphabet;
+//    using FiniteAutomaton<C>::states;
+//    using FiniteAutomaton<C>::initState;
+//    using FiniteAutomaton<C>::finishStates;
 //};
 //
 //
 //template <typename C>
-//class NFA : public FiniteAutomation<C> {
+//class NFA : public FiniteAutomaton<C> {
 //public:
-//    using typename FiniteAutomation<C>::State;
+//    using typename FiniteAutomaton<C>::State;
 //    typedef std::pair<std::pair<State, C>, Set<State>> Transition;
 //    friend class DFA<C>;
 //
 //private:
 //    Map<std::pair<State, C>, Set<State>> transitions;
-//    using FiniteAutomation<C>::alphabet;
-//    using FiniteAutomation<C>::states;
-//    using FiniteAutomation<C>::initState;
-//    using FiniteAutomation<C>::finishStates;
+//    using FiniteAutomaton<C>::alphabet;
+//    using FiniteAutomaton<C>::states;
+//    using FiniteAutomaton<C>::initState;
+//    using FiniteAutomaton<C>::finishStates;
 //
 //public:
 //    NFA() {}
@@ -173,13 +175,13 @@ private:
 //    NFA (std::vector<C> const& alphabet, Set<State> const &states, 
 //             State initState, Set<State> const &finishStates,
 //             Map<std::pair<State,C>,Set<State>> const &transitions)
-//        : FiniteAutomation<C> (alphabet, states, initState, finishStates),
+//        : FiniteAutomaton<C> (alphabet, states, initState, finishStates),
 //          transitions (transitions) {}
 //
 //    NFA (Set<std::basic_string<C>> const &code);
 //
 //public:
-//    using FiniteAutomation<C>::recognizeEmptyString;
+//    using FiniteAutomaton<C>::recognizeEmptyString;
 //    NFA notRecogEmptyNFA() const;
 //
 //};

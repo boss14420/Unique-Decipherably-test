@@ -24,11 +24,13 @@
 #include <tuple>
 #include <rapidxml.hpp>
 #include <cstring>
+#include <fstream>
 #include "automata.hh"
+#include "util.hpp"
 
 #define CONTAIN(c,k) (c.find (k) != c.end())
 
-const FiniteAutomation::C FiniteAutomation::empty_letter = C() - 2;
+const FiniteAutomaton::C FiniteAutomaton::empty_letter = C() - 2;
 
 /* template <typename C>
  * NFA<C>::NFA (Set<std::basic_string<C>> const &code)
@@ -151,16 +153,17 @@ FiniteAutomation::FiniteAutomation (char *jflapAutomation)
             c = empty_letter;
             flags |= FlagHasEMove;
         } else
-            alphabet_set.insert (c);
+            alphabet.insert (c);
         
         transitions[{from, c}].insert (to);
         if (transitions[{from, c}].size() > 1)
             flags = (flags & ~FlagDFA) | FlagNFA;
     }
-    alphabet.assign (alphabet_set.begin(), alphabet_set.end());
+
+    delete[] text;
 }
 
-bool FiniteAutomation::recognizeEmptyString() const
+bool FiniteAutomaton::recognizeEmptyString() const
 {
     bool initIsFinish = CONTAIN (finishStates, initState);
 
@@ -196,7 +199,7 @@ bool FiniteAutomation::recognizeEmptyString() const
     return false;
 }
 
-bool FiniteAutomation::isEmpty() const
+bool FiniteAutomaton::isEmpty() const
 {
     // TODO when not coaccessible
 
@@ -204,7 +207,7 @@ bool FiniteAutomation::isEmpty() const
     return (flags & FlagCoaccessible) && finishStates.empty();
 }
 
-FiniteAutomation& FiniteAutomation::excludeEmptyString() 
+FiniteAutomaton& FiniteAutomaton::excludeEmptyString() 
 {
     if (!recognizeEmptyString())
         return *this;
@@ -231,7 +234,7 @@ FiniteAutomation& FiniteAutomation::excludeEmptyString()
 }
 
 
-Set<FiniteAutomation::State> FiniteAutomation::eClosure (State s) const
+Set<FiniteAutomaton::State> FiniteAutomaton::eClosure (State s) const
 {
     if (!(flags & FlagHasEMove))
         return {s};
@@ -261,8 +264,8 @@ Set<FiniteAutomation::State> FiniteAutomation::eClosure (State s) const
     return result;
 }
 
-Set<FiniteAutomation::State> 
-FiniteAutomation::eClosure (Set<State> const &ss) const
+Set<FiniteAutomaton::State> 
+FiniteAutomaton::eClosure (Set<State> const &ss) const
 {
     Set<State> result;
     for (State s : ss) {
@@ -272,7 +275,7 @@ FiniteAutomation::eClosure (Set<State> const &ss) const
     return result;
 }
 
-FiniteAutomation& FiniteAutomation::removeEMoves()
+FiniteAutomaton& FiniteAutomaton::removeEMoves()
 {
     if (!(flags & FlagHasEMove))
         return *this;
@@ -359,7 +362,7 @@ FiniteAutomation& FiniteAutomation::removeEMoves()
 }
 
 
-FiniteAutomation& FiniteAutomation::normalizeStateIndex()
+FiniteAutomaton& FiniteAutomaton::normalizeStateIndex()
 {
     State maxIndex = *std::max_element (states.begin(), states.end());
     if (maxIndex == states.size())
@@ -394,7 +397,7 @@ FiniteAutomation& FiniteAutomation::normalizeStateIndex()
     return *this;
 }
 
-FiniteAutomation& FiniteAutomation::removeInAccessibleStates()
+FiniteAutomaton& FiniteAutomaton::removeInAccessibleStates()
 {
     if (flags & FlagCoaccessible)
         return *this;
@@ -451,7 +454,7 @@ FiniteAutomation& FiniteAutomation::removeInAccessibleStates()
     return *this;
 }
 
-FiniteAutomation& FiniteAutomation::removeNotCoaccessibleStates()
+FiniteAutomaton& FiniteAutomaton::removeNotCoaccessibleStates()
 {
     if (flags & FlagCoaccessible)
         return *this;
@@ -765,21 +768,21 @@ FiniteAutomation& FiniteAutomation::cutByPrefix (FiniteAutomation const &prefix)
     return *this;
 }
 
-bool operator== (FiniteAutomation const &dfa1, FiniteAutomation const &dfa2)
+bool operator== (FiniteAutomaton const &dfa1, FiniteAutomaton const &dfa2)
 {
 
-    FiniteAutomation td1 = dfa1; 
+    FiniteAutomaton td1 = dfa1; 
     td1.removeNotCoaccessibleStates();
     td1.removeEMoves();
-    FiniteAutomation td2 = dfa2; 
+    FiniteAutomaton td2 = dfa2; 
     td2.removeNotCoaccessibleStates();
     td2.removeEMoves();
 
     // TODO
     // Test if use same alphabet
 
-    typedef FiniteAutomation::State State;
-    typedef FiniteAutomation::C C;
+    typedef FiniteAutomaton::State State;
+    typedef FiniteAutomaton::C C;
 
     typedef std::pair<State, State> StatePair;
     std::queue<StatePair> pairsQueue;

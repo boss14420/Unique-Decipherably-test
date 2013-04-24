@@ -26,7 +26,7 @@
 int main (int argc, char *argv[])
 {
     
-//    FiniteAutomation fa {
+//    FiniteAutomaton fa {
 //        // alphabet
 //        {{ 'a', 'b' }},
 //        // states
@@ -37,7 +37,7 @@ int main (int argc, char *argv[])
 //        {2}
 //    };
 
-    FiniteAutomation nfa1 (
+    FiniteAutomaton nfa1 (
         // alphabet
         {{ 'a', 'b' }},
         // states
@@ -53,14 +53,14 @@ int main (int argc, char *argv[])
             {{1, 'b'}, {1}},
             {{2, 'b'}, {2}}
         }},
-        static_cast<typename FiniteAutomation::FAFlag> (
-            FiniteAutomation::FlagNFA 
-            | FiniteAutomation::FlagAccessible
-            | FiniteAutomation::FlagCoaccessible
+        static_cast<typename FiniteAutomaton::FAFlag> (
+            FiniteAutomaton::FlagNFA 
+            | FiniteAutomaton::FlagAccessible
+            | FiniteAutomaton::FlagCoaccessible
         )
     );
     
-    FiniteAutomation nfa2 (
+    FiniteAutomaton nfa2 (
         // alphabet
         { 'a', 'b' },
         // states
@@ -75,10 +75,10 @@ int main (int argc, char *argv[])
             {{1, 'a'}, {1}},
             {{1, 'b'}, {1,2}},
         },
-        static_cast<typename FiniteAutomation::FAFlag> (
-            FiniteAutomation::FlagNFA 
-            | FiniteAutomation::FlagAccessible
-            | FiniteAutomation::FlagCoaccessible
+        static_cast<typename FiniteAutomaton::FAFlag> (
+            FiniteAutomaton::FlagNFA 
+            | FiniteAutomaton::FlagAccessible
+            | FiniteAutomaton::FlagCoaccessible
         )
     );
 
