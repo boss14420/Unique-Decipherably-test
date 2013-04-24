@@ -87,5 +87,8 @@ int main (int argc, char *argv[])
 
     std::cout << (nfa1 == nfa2) << '\n';
 
+    nfa1.writeToXmlFile ("nfa1.xml");
+    nfa2.writeToXmlFile ("nfa2.xml");
+
     return 0;
 }

@@ -828,3 +828,46 @@ bool operator== (FiniteAutomaton const &dfa1, FiniteAutomaton const &dfa2)
 
     return true;
 }
+
+
+void FiniteAutomaton::writeToXmlFile (char const *filename) 
+{
+    std::ofstream file (filename, std::ios::out | std::ios::trunc);
+    if (!file.is_open())
+        return;
+
+    file << "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+            "<structure>\n\t<type>fa</type>\n\t<automaton>\n";
+    
+    float width = 600, x = 0, y = 100;
+    float gap = width / (states.size() + 2);
+    for (State s : states) {
+        file << "\t\t<state id=\"" << s << "\" name=\"q" << s << "\">\n"
+                "\t\t\t<x>" << (x+=gap) << "</x>\n"
+                "\t\t\t<y>" << y << "</y>\n";
+        if (s == initState)
+            file << "\t\t\t<initial/>\n";
+        if (CONTAIN (finishStates, s))
+            file << "\t\t\t<final/>\n";
+        file << "\t\t</state>\n";
+    }
+
+    for (auto &transts : transitions) {
+        State q1 = transts.first.first;
+        C c = transts.first.second;
+        for (State q2 : transts.second) {
+            file << "\t\t<transition>\n"
+                    "\t\t\t<from>" << q1 << "</from>\n"
+                    "\t\t\t<to>" << q2 << "</to>\n";
+            if (c == empty_letter)
+                file << "\t\t\t<read/>\n";
+            else
+                file << "\t\t\t<read>" << c << "</read>\n";
+            file << "\t\t</transition>\n";
+        }
+    }
+
+    file << "\t</automaton>\n</structure>";
+
+    file.close();
+}
