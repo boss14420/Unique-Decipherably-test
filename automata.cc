@@ -81,10 +81,26 @@ const FiniteAutomaton::C FiniteAutomaton::empty_letter = C() - 2;
  * 
  */
 
-FiniteAutomation::FiniteAutomation (char *jflapAutomation)
+char *readTextFile (char const *filename) {
+    std::ifstream file (filename, std::ios::in | std::ios::binary | std::ios::ate);
+    if (file.is_open()) {
+        std::size_t size = file.tellg();
+        char *contents = new char[size];
+        file.seekg (0, std::ios::beg);
+        file.read (contents, size);
+        file.close ();
+
+        return contents;
+    }
+
+    return NULL;
+}
+
+FiniteAutomaton::FiniteAutomaton (char const *filename)
 {
     rapidxml::xml_document<C> xml;
-    xml.parse<0> (jflapAutomation);
+    char *text = readTextFile (filename);
+    xml.parse<0> (text);
 
     rapidxml::xml_node<C>* first_node = xml.first_node ("structure");
     if (!first_node)
@@ -117,11 +133,12 @@ FiniteAutomation::FiniteAutomation (char *jflapAutomation)
         stateIds[std::atoi (node->first_attribute()->value())] = currentStateId;
         states.insert (currentStateId);
 
-        if (!std::strcmp (node->last_node()->name(), "initial")) {
+        if (node->first_node ("initial")) {
             if (initState != invalid_state)
                 throw XmlParseFailed ("Too many init states");
             initState = currentStateId;
-        } else if (!std::strcmp (node->last_node()->name(), "final"))
+        } 
+        if (node->first_node ("final"))
             finishStates.insert (currentStateId);
 
         ++currentStateId;
