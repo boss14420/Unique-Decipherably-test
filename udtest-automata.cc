@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <algorithm>
+#include <fstream>
 #include "automata.hh"
 
 /* bool is_ud (Set<std::string> const &code) {
@@ -79,7 +80,24 @@ bool is_ud (FiniteAutomation const &code) {
     return true;
 }
 
-int main () {
+
+char *read_file (char const *filename) {
+    std::ifstream file (filename, std::ios::in | std::ios::binary | std::ios::ate);
+    if (file.is_open()) {
+        std::size_t size = file.tellg();
+        char *contents = new char[size];
+        file.seekg (0, std::ios::beg);
+        file.read (contents, size);
+        file.close ();
+
+        return contents;
+    }
+
+    return NULL;
+}
+
+
+int main (int argc, char *argv[]) {
     
     // code = ab*
 /*     FiniteAutomation code (
@@ -102,29 +120,29 @@ int main () {
  *     );
  */
 
-
-    
     // code = a*ba*
-    FiniteAutomation code (
-        // alphabet
-        {{ 'a', 'b' }},
-        // states
-        {{ 0, 1 }},
-        // initState
-        0,
-        // finishStates
-        {1},
-        // transitions
-        {
-            {{0, 'a'}, {0}},
-            {{0, 'b'}, {1}},
-            {{1, 'a'}, {1}}
-        },
-        // flags
-        FiniteAutomation::FlagDFA | FiniteAutomation::FlagAccessible
-        | FiniteAutomation::FlagCoaccessible
-    );
+/*     FiniteAutomation code (
+ *         // alphabet
+ *         {{ 'a', 'b' }},
+ *         // states
+ *         {{ 0, 1 }},
+ *         // initState
+ *         0,
+ *         // finishStates
+ *         {1},
+ *         // transitions
+ *         {
+ *             {{0, 'a'}, {0}},
+ *             {{0, 'b'}, {1}},
+ *             {{1, 'a'}, {1}}
+ *         },
+ *         // flags
+ *         FiniteAutomation::FlagDFA | FiniteAutomation::FlagAccessible
+ *         | FiniteAutomation::FlagCoaccessible
+ *     );
+ */
 
+    FiniteAutomation code (read_file (argv[1]));
 
     std::cout << is_ud (code) << '\n';
 

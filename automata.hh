@@ -27,14 +27,21 @@
 #include <vector>
 #include <utility>
 #include <string>
+#include <exception>
 #include "util.hpp"
 
 template<typename T> using Set = std::unordered_set<T>;
 template<typename Key, typename Value> using Map = std::unordered_map<Key, Value>;
 
 
-//template <typename C> class DFA;
-//template <typename C> class NFA;
+
+class XmlParseFailed : public std::exception {
+public:
+    XmlParseFailed (char const *str = nullptr) : str (str) {}
+private:
+    std::string str;
+};
+
 
 class FiniteAutomation {
 public:
@@ -61,6 +68,8 @@ public:
         : states ({0}), initState (0),
           flags (FlagDFA | FlagAccessible | FlagCoaccessible)
     {}
+
+    FiniteAutomation (char *jflapAutomation);
 
     FiniteAutomation (std::vector<C> const& alphabet, Set<State> const &states, 
                       State initState, Set<State> const &finishStates,

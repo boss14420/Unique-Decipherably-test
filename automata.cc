@@ -22,6 +22,8 @@
 #include <queue>
 #include <algorithm>
 #include <tuple>
+#include <rapidxml.hpp>
+#include <cstring>
 #include "automata.hh"
 
 #define CONTAIN(c,k) (c.find (k) != c.end())
@@ -76,6 +78,87 @@ const FiniteAutomation::C FiniteAutomation::empty_letter = C() - 2;
  * }
  * 
  */
+
+FiniteAutomation::FiniteAutomation (char *jflapAutomation)
+{
+    rapidxml::xml_document<C> xml;
+    xml.parse<0> (jflapAutomation);
+
+    rapidxml::xml_node<C>* first_node = xml.first_node ("structure");
+    if (!first_node)
+        throw XmlParseFailed();
+
+    // check fa
+    auto type_node = first_node->first_node();
+    if (!type_node || std::strcmp (type_node->name(), "type")
+            || std::strcmp (type_node->value(), "fa"))
+        throw XmlParseFailed();
+
+
+    //
+    // construct
+    auto automaton = type_node->next_sibling();
+    if (!automaton || std::strcmp (automaton->name(), "automaton"))
+        throw XmlParseFailed();
+
+    // states
+    initState = invalid_state;
+    Map <int, State> stateIds;
+    State currentStateId = 0;
+    auto node = automaton->first_node();
+    for (;node && !std::strcmp (node->name(), "state"); 
+                                    node = node->next_sibling()) 
+    {
+        if (std::strcmp (node->first_attribute()->name(), "id"))
+            throw XmlParseFailed();
+
+        stateIds[std::atoi (node->first_attribute()->value())] = currentStateId;
+        states.insert (currentStateId);
+
+        if (!std::strcmp (node->last_node()->name(), "initial")) {
+            if (initState != invalid_state)
+                throw XmlParseFailed ("Too many init states");
+            initState = currentStateId;
+        } else if (!std::strcmp (node->last_node()->name(), "final"))
+            finishStates.insert (currentStateId);
+
+        ++currentStateId;
+    }
+
+    // transitions
+    flags = FlagDFA;
+    Set<C> alphabet_set;
+    for (;node && !std::strcmp (node->name(), "transition");
+                                            node = node->next_sibling())
+    {
+        State from, to;
+        C c;
+        
+        rapidxml::xml_node<> *cnode;
+
+        if ( !(cnode = node->first_node ("from")) || !cnode->value() )
+            throw XmlParseFailed();
+        from = stateIds[std::atoi (cnode->value())];
+
+        if ( !(cnode = node->first_node ("to")) || !cnode->value() )
+            throw XmlParseFailed();
+        to = stateIds[std::atoi (cnode->value())];
+
+        if ( !(cnode = node->first_node ("read")) || !cnode->value() )
+            throw XmlParseFailed();
+        c = *cnode->value();
+        if (c == '\0') {
+            c = empty_letter;
+            flags |= FlagHasEMove;
+        } else
+            alphabet_set.insert (c);
+        
+        transitions[{from, c}].insert (to);
+        if (transitions[{from, c}].size() > 1)
+            flags = (flags & ~FlagDFA) | FlagNFA;
+    }
+    alphabet.assign (alphabet_set.begin(), alphabet_set.end());
+}
 
 bool FiniteAutomation::recognizeEmptyString() const
 {
