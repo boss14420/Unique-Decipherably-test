@@ -146,7 +146,6 @@ FiniteAutomaton::FiniteAutomaton (char const *filename)
 
     // transitions
     flags = FlagDFA;
-    Set<C> alphabet_set;
     for (;node && !std::strcmp (node->name(), "transition");
                                             node = node->next_sibling())
     {
