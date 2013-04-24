@@ -1,7 +1,7 @@
 all: udtest-automata udtest-tail automata-test
 #all: automata-test
 
-CXX = clang++
+CXX = g++
 CXXFLAGS = -g -Wall -Wno-mismatched-tags -std=c++11
 INCLUDE = -I.
 
@@ -9,10 +9,10 @@ udtest-tail: udtest-tail.cc
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $<
 
 udtest-automata: udtest-automata.cc automata.cc.o
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $?
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $^
 
 automata-test: automata-test.cc automata.cc.o
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $?
+	$(CXX) $(CXXFLAGS) $(INCLUDE) -o $@ $^
 
 automata.cc.o: automata.cc automata.hh util.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c -o $@ $<
