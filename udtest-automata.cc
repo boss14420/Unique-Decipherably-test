@@ -41,7 +41,19 @@
 * 
 */
 
-bool is_ud (FiniteAutomaton code) {
+bool is_ud (FiniteAutomaton const &code) {
+    FiniteAutomaton fa1 = code;
+    fa1.cutByPrefix (fa1);
+
+    FiniteAutomaton fa2 = code;
+    fa2.klene();
+    fa2.removeEMoves();
+    fa2.cutBySuffix (fa2);
+
+    return intersectAutomata (fa1, fa2).recognizeOnlyEmptyString ();
+}
+
+bool is_ud_sardinas_patterson (FiniteAutomaton code) {
     std::deque<FiniteAutomaton> S, SS;
     code.removeEMoves();
     FiniteAutomaton fa = code;
@@ -104,31 +116,32 @@ int main (int argc, char *argv[]) {
  *     );
  */
 
-    // code = a*ba*
-/*     FiniteAutomaton code (
- *         // alphabet
- *         {{ 'a', 'b' }},
- *         // states
- *         {{ 0, 1 }},
- *         // initState
- *         0,
- *         // finishStates
- *         {1},
- *         // transitions
- *         {
- *             {{0, 'a'}, {0}},
- *             {{0, 'b'}, {1}},
- *             {{1, 'a'}, {1}}
- *         },
- *         // flags
- *         FiniteAutomaton::FlagDFA | FiniteAutomaton::FlagAccessible
- *         | FiniteAutomaton::FlagCoaccessible
- *     );
- */
+    // code = {a, ab, ba}
+//    FiniteAutomaton code (
+//        // alphabet
+//        {{ 'a', 'b' }},
+//        // states
+//        {{ 0, 1, 2, 3 }},
+//        // initState
+//        0,
+//        // finishStates
+//        {1, 2},
+//        // transitions
+//        {
+//            {{0, 'a'}, {1}},
+//            {{1, 'b'}, {2}},
+//            {{0, 'b'}, {3}},
+//            {{3, 'a'}, {2}}
+//        },
+//        // flags
+//        FiniteAutomaton::FlagDFA | FiniteAutomaton::FlagAccessible
+//        | FiniteAutomaton::FlagCoaccessible
+//    );
+
 
     FiniteAutomaton code (argv[1]);
 
-    std::cout << is_ud (code) << '\n';
+    std::cout << is_ud (code) << is_ud_sardinas_patterson (code) << '\n';
 
     return 0;
 }
