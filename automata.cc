@@ -20,6 +20,7 @@
 **************************************************************************/
 
 #include <queue>
+#include <stack>
 #include <algorithm>
 #include <tuple>
 #include <rapidxml.hpp>
@@ -215,12 +216,33 @@ bool FiniteAutomaton::recognizeEmptyString() const
     return false;
 }
 
+bool FiniteAutomaton::recognizeOnlyEmptyString() const
+{
+    if (!(flags & FlagHasEMove)) {
+        if (finishStates.size() == 1 && *finishStates.begin() == initState) {
+            for (C c : alphabet) {
+                auto t = transitions.find ({initState, c});
+                
+                // has a move from initState to initState
+                if (t != transitions.end() && CONTAIN (t->second, initState))
+                    return false;
+            }
+            return true;
+        }
+        // initState is not the only finishStates
+        return false;
+    } else {
+        // TODO: when has e-moves
+    }
+}
+
 bool FiniteAutomaton::isEmpty() const
 {
+
+    if (finishStates.empty())
+        return true;
+
     // TODO when not coaccessible
-
-
-    return (flags & FlagCoaccessible) && finishStates.empty();
 }
 
 FiniteAutomaton& FiniteAutomaton::excludeEmptyString() 
@@ -746,6 +768,69 @@ FiniteAutomaton& FiniteAutomaton::trim()
     return removeNotCoaccessibleStates().removeInAccessibleStates();
 }
 
+FiniteAutomaton& FiniteAutomaton::klene()
+{
+    for (State f : finishStates) {
+        transitions[{f, empty_letter}].insert (initState);
+    }
+    flags |= FlagHasEMove;
+
+    return *this;
+}
+
+FiniteAutomaton& FiniteAutomaton::cutBySuffix (FiniteAutomaton suffix)
+{
+    removeEMoves();
+    suffix.removeEMoves();
+        
+    typedef std::pair<State, State> StatePair;
+    Set<State> cutPoints;
+
+    auto &sTransitions = suffix.transitions;
+
+    for (State s : states) {
+        Set<StatePair> oldPairs;
+        std::stack<StatePair> pairsStack;
+        pairsStack.push ({s, suffix.initState});
+
+        while (!pairsStack.empty()) {
+            auto p = pairsStack.top();
+            pairsStack.pop();
+
+            for (C c : suffix.alphabet) {
+                auto t1 = transitions.find ({p.first, c});
+                auto t2 = sTransitions.find ({p.second, c});
+
+                if (t1 == transitions.end() || t2 == sTransitions.end())
+                    continue;
+
+                for (State ns1 : t1->second)
+                    for (State ns2 : t2->second) {
+                        StatePair np {ns1, ns2};
+                        if (!CONTAIN (oldPairs, np)) {
+                            if (CONTAIN (finishStates, ns1)
+                                && CONTAIN (suffix.finishStates, ns2)) 
+                            {
+                                cutPoints.insert (s);
+                                goto test_next_state;
+                            }
+                            oldPairs.insert (np);
+                            pairsStack.push (np);
+                        }
+                    }
+            }
+        }
+test_next_state:
+        ++s; 
+    }
+
+    if (cutPoints.empty())
+        return (*this = FiniteAutomaton());
+    
+    finishStates = std::move (cutPoints);
+    flags &= ~FlagCoaccessible;
+    return *this;
+}
 
 FiniteAutomaton& FiniteAutomaton::cutByPrefix (FiniteAutomaton prefix)
 {
@@ -919,4 +1004,59 @@ void FiniteAutomaton::writeToXmlFile (char const *filename)
     file << "\t</automaton>\n</structure>";
 
     file.close();
+}
+
+
+FiniteAutomaton intersectAutomata (FiniteAutomaton fa1, FiniteAutomaton fa2)
+{
+    fa1.removeEMoves();
+    fa2.removeEMoves();
+
+    FiniteAutomaton res;
+    res.flags = FiniteAutomaton::FlagNFA;
+    res.alphabet = fa1.alphabet;
+
+    typedef FiniteAutomaton::State State;
+    typedef std::pair<State, State> StatePair;
+    
+    State iStateCount = 0;
+    Map<StatePair, State> pairIndex;
+    pairIndex[{fa1.initState, fa2.initState}] = iStateCount;
+    res.initState = iStateCount;
+
+    std::queue<StatePair> pairsQueue;
+    pairsQueue.push ({fa1.initState, fa2.initState});
+
+    while (!pairsQueue.empty()) {
+        auto p = pairsQueue.front();
+        pairsQueue.pop();
+        State id = pairIndex[p];
+
+        if (CONTAIN (fa1.finishStates, p.first) 
+                && CONTAIN (fa2.finishStates, p.second))
+        {
+            res.finishStates.insert (id);
+        }
+
+        // TODO: different alphabet
+        for (FiniteAutomaton::C c : fa1.alphabet) {
+            auto t1 = fa1.transitions.find ({p.first, c});
+            auto t2 = fa2.transitions.find ({p.second, c});
+            
+            if (t1 == fa1.transitions.end() || t2 == fa2.transitions.end())
+                continue;
+
+            for (State ns1 : t1->second)
+                for (State ns2 : t2->second) {
+                    StatePair np { ns1, ns2 };
+                    if (!CONTAIN (pairIndex, np)) {
+                        pairsQueue.push (np);
+                        pairIndex[np] = ++iStateCount;
+                    }
+                    res.transitions[{id, c}].insert (pairIndex[np]);
+                }
+        }
+    }
+
+    return res;
 }

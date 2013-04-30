@@ -91,6 +91,7 @@ public:
 
 public:
     bool recognizeEmptyString() const;
+    bool recognizeOnlyEmptyString() const;
     bool isEmpty() const;
 
     FiniteAutomaton& excludeEmptyString();
@@ -98,11 +99,16 @@ public:
     FiniteAutomaton& removeInAccessibleStates();
     FiniteAutomaton& removeNotCoaccessibleStates();
     FiniteAutomaton& trim();
+    FiniteAutomaton& klene();
 
     FiniteAutomaton& cutByPrefix (FiniteAutomaton prefix);
+    FiniteAutomaton& cutBySuffix (FiniteAutomaton suffix);
 
     friend 
     bool operator== (FiniteAutomaton const&, FiniteAutomaton const&);
+
+    friend
+    FiniteAutomaton intersectAutomata (FiniteAutomaton fa1, FiniteAutomaton fa2);
 
     void writeToXmlFile (char const *filename);
 
