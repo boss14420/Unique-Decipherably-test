@@ -2,6 +2,7 @@
 #include <tuple>
 #include <functional>
 #include <fstream>
+#include <unordered_set>
 
 #ifndef _UTIL_HPP_
 #define _UTIL_HPP_
@@ -72,8 +73,67 @@ namespace std {
                 return hvi (t);
             }
         };
+
+        
+    template <class T>
+        class hash<unordered_set<T>>
+        {
+            custom::HashCombine<T> ht;
+
+        public:
+            size_t operator()(const unordered_set<T> &ss) const {
+                size_t seed = 0;
+                for (auto &t : ss)
+                    seed = ht (seed, t);
+                return seed;
+            }
+        };
+   
 }
 
+//template <typename T>
+//class container_hash<T>
+//{
+//    std::custom::HashCombine<T> ht;
+//
+//public:
+//    template <template <typename> class Container>
+//    size_t operator()(const Container<T> &c) const {
+//        size_t seed = 0;
+//        for (auto t : c)
+//            seed = hb (seed, t);
+//        return seed;
+//    }
+//};
+//
+//
+//template <typename T, typename T2 = T>
+//class container_hash<std::pair<T, T2>>
+//{
+//    hash<A> ha;
+//    container_hash<
+//    custom::HashCombine<B> hb;
+//
+//    public:
+//    size_t operator()(const std::pair<A, B> &p) const {
+//        size_t seed = ha (p.first);
+//        return hb (seed, p.second);
+//    }
+//};
+
+template <typename InIt1, typename InIt2, typename OutIt>
+OutIt unordered_set_intersection(InIt1 b1, InIt1 e1, InIt2 b2, InIt2 e2, OutIt out) {
+    while (!(b1 == e1)) {
+        if (!(std::find(b2, e2, *b1) == e2)) {
+            *out = *b1;
+            ++out;
+        }
+
+        ++b1;
+    }
+
+    return out;
+}
 
 
 #endif // _UTIL_HPP_

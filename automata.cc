@@ -218,21 +218,36 @@ bool FiniteAutomaton::recognizeEmptyString() const
 
 bool FiniteAutomaton::recognizeOnlyEmptyString() const
 {
+    if (!recognizeEmptyString()) return false;
+
     if (!(flags & FlagHasEMove)) {
-        if (finishStates.size() == 1 && *finishStates.begin() == initState) {
+        Set<State> accessibleStates {initState};
+        std::stack<State> statesStack;
+        statesStack.push (initState);
+
+        while (!statesStack.empty()) {
+            State s = statesStack.top();
+            statesStack.pop();
+
             for (C c : alphabet) {
-                auto t = transitions.find ({initState, c});
-                
-                // has a move from initState to initState
-                if (t != transitions.end() && CONTAIN (t->second, initState))
-                    return false;
+                auto iNext = transitions.find ({s, c});
+                if (iNext != transitions.end())
+                    for (State ns : iNext->second) {
+                        if (CONTAIN (finishStates, ns))
+                            return false;
+                        if (!CONTAIN (accessibleStates, ns)) {
+                            accessibleStates.insert (ns);
+                            statesStack.push (ns);
+                        }
+                    }
             }
-            return true;
         }
-        // initState is not the only finishStates
-        return false;
+
+        return true;
+
     } else {
         // TODO: when has e-moves
+        throw MethodNotYetImplement ("FiniteAutomaton::recognizeOnlyEmptyString()");
     }
 }
 
@@ -242,7 +257,33 @@ bool FiniteAutomaton::isEmpty() const
     if (finishStates.empty())
         return true;
 
-    // TODO when not coaccessible
+    if (flags & FlagCoaccessible)
+        return false;
+
+    std::vector<Set<State>> prevStates (states.size());
+    for (auto &transt : transitions)
+        for (auto ps : transt.second)
+            prevStates[ps].insert (transt.first.first);
+
+    Set<State> coaccessibleStates = finishStates;
+    std::stack<State> statesStack;
+    for (State f : coaccessibleStates) statesStack.push (f);
+
+    while (!statesStack.empty()) {
+        State s = statesStack.top();
+        statesStack.pop();
+
+        if (s == initState)
+            return false;
+
+        for (State ns : prevStates[s])
+            if (!CONTAIN (coaccessibleStates, ns)) {
+                coaccessibleStates.insert (ns);
+                statesStack.push (ns);
+            }
+    }
+
+    return true;
 }
 
 FiniteAutomaton& FiniteAutomaton::excludeEmptyString() 
@@ -459,10 +500,11 @@ FiniteAutomaton& FiniteAutomaton::removeInAccessibleStates()
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
         statesQueue.pop();
-        accessibleStates.insert (s);
         for (State ps : nextStates[s])
-            if (!CONTAIN (accessibleStates, ps))
+            if (!CONTAIN (accessibleStates, ps)) {
                 statesQueue.push (ps);
+                accessibleStates.insert (ps);
+            }
     }
 
     // remove inaccessible states' paths
@@ -534,10 +576,11 @@ FiniteAutomaton& FiniteAutomaton::removeNotCoaccessibleStates()
     while (!statesQueue.empty()) {
         State s = statesQueue.front();
         statesQueue.pop();
-        coaccessibleStates.insert (s);
         for (State ps : prevStates[s])
-            if (!CONTAIN (coaccessibleStates, ps))
+            if (!CONTAIN (coaccessibleStates, ps)) {
                 statesQueue.push (ps);
+                coaccessibleStates.insert (ps);
+            }
     }
 
     if (coaccessibleStates.size() == states.size()) {
@@ -902,8 +945,26 @@ FiniteAutomaton& FiniteAutomaton::cutByPrefix (FiniteAutomaton prefix)
     return *this;
 }
 
+Set<FiniteAutomaton::State>
+FiniteAutomaton::nextStates (Set<FiniteAutomaton::State> const &ss, C c) const
+{
+    Set<State> res;
+    for (State s : ss) {
+        auto iNext = transitions.find ({s, c});
+        if (iNext != transitions.end())
+            res.insert (iNext->second.begin(), iNext->second.end());
+    } 
+
+    return res;
+}
+
 bool operator== (FiniteAutomaton const &dfa1, FiniteAutomaton const &dfa2)
 {
+
+    // TODO when use different alphabet
+
+    if (dfa1.alphabet != dfa2.alphabet)
+        throw MethodNotYetImplement ("operator==");
 
     FiniteAutomaton td1 = dfa1; 
     td1.removeNotCoaccessibleStates();
@@ -912,50 +973,49 @@ bool operator== (FiniteAutomaton const &dfa1, FiniteAutomaton const &dfa2)
     td2.removeNotCoaccessibleStates();
     td2.removeEMoves();
 
-    // TODO
-    // Test if use same alphabet
 
     typedef FiniteAutomaton::State State;
     typedef FiniteAutomaton::C C;
 
-    typedef std::pair<State, State> StatePair;
+    typedef std::pair<Set<State>, Set<State>> StatePair;
     std::queue<StatePair> pairsQueue;
-    pairsQueue.push ({td1.initState, td2.initState});
+    pairsQueue.push ({{td1.initState}, {td2.initState}});
     Set<StatePair> oldPairs;
-
-    auto &transts1 = td1.transitions, &transts2 = td2.transitions;
 
     while (!pairsQueue.empty()) {
         auto p = pairsQueue.front();
         pairsQueue.pop();
-        oldPairs.insert (p);
 
-        if (   (CONTAIN (td1.finishStates, p.first)
-                 && !CONTAIN (td2.finishStates, p.second))
-            || (!CONTAIN (td1.finishStates, p.first)
-                 && CONTAIN (td2.finishStates, p.second))
-           )
+        int finish1 = 0, finish2 = 0;
+        
+        for (State f : td1.finishStates)
+            if (CONTAIN (p.first, f)) {
+                finish1 = 1;
+                break;
+            }
+
+        for (State f : td2.finishStates)
+            if (CONTAIN (p.second, f)) {
+                finish2 = 1;
+                break;
+            }
+
+        if ((finish1 + finish2) == 1)
             return false;
 
         for (C c : td1.alphabet) {
-            auto t1 = transts1.find ({p.first, c});
-            auto t2 = transts2.find ({p.second, c});
-            if (t1 == transts1.end()) {
-                if (t2 == transts2.end())
-                    continue;
-                else
-                    return false;
-            } else {
-                if (t2 == transts2.end())
-                    return false;
-                else {
-                    for (State ns1 : t1->second)
-                        for (State ns2 : t2->second) {
-                            StatePair np = { ns1, ns2 };
-                            if (!CONTAIN (oldPairs, np))
-                                pairsQueue.push (np);
-                        }
-                }
+            Set<State> ns1 = td1.nextStates (p.first, c);
+            Set<State> ns2 = td2.nextStates (p.second, c);
+
+            if (  (ns1.size() > 0 && ns2.size() == 0)
+                ||(ns1.size() == 0 && ns2.size() > 0))
+                return false;
+
+            StatePair np { std::move (ns1), std::move (ns2) };
+
+            if (!CONTAIN (oldPairs, np)) {
+                oldPairs.insert (np);
+                pairsQueue.push (std::move (np)); 
             }
         }
     }
@@ -1009,6 +1069,11 @@ void FiniteAutomaton::writeToXmlFile (char const *filename)
 
 FiniteAutomaton intersectAutomata (FiniteAutomaton fa1, FiniteAutomaton fa2)
 {
+    // TODO: different alphabet
+
+    if (fa1.alphabet != fa2.alphabet)
+        throw MethodNotYetImplement("intersectAutomata()");
+
     fa1.removeEMoves();
     fa2.removeEMoves();
 
@@ -1038,7 +1103,6 @@ FiniteAutomaton intersectAutomata (FiniteAutomaton fa1, FiniteAutomaton fa2)
             res.finishStates.insert (id);
         }
 
-        // TODO: different alphabet
         for (FiniteAutomaton::C c : fa1.alphabet) {
             auto t1 = fa1.transitions.find ({p.first, c});
             auto t2 = fa2.transitions.find ({p.second, c});

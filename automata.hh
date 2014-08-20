@@ -42,6 +42,17 @@ private:
     std::string str;
 };
 
+class MethodNotYetImplement : public std::exception {
+    std::string str;
+public:
+    MethodNotYetImplement (char const *str = "Method not yet implement") 
+        : str (str) 
+    {}
+
+    char const * what() const noexcept {
+        return str.c_str();
+    }
+};
 
 class FiniteAutomaton {
 public:
@@ -115,6 +126,7 @@ public:
 private:
     Set<State> eClosure (State s) const;
     Set<State> eClosure (Set<State> const &ss) const;
+    Set<State> nextStates (Set<State> const &ss, C c) const;
     
     FiniteAutomaton& normalizeStateIndex();
 

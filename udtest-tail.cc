@@ -27,14 +27,30 @@
 
 template <typename T> using Set = std::unordered_set<T>;
 
-bool is_ud (Set<std::string> const &code) {
-    std::deque<Set<std::string>> S (1);
-    S[0] = code;
+namespace std {
+    template<>
+    struct hash<Set<std::string>> {
+        size_t operator() (Set<std::string> const &ss) const {
+            size_t seed = 0;
+            auto h = std::hash<std::string>();
+            for (auto const &s : ss)
+                // boost::hash_combine()
+                seed ^= h(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 
-    for (int i = 1; !S[i-1].empty() ; ++i) {
-        S.resize (i+1);
-        for (auto &w1 : S[0]) {
-            for (auto &w2 : S[i-1]) {
+            return seed;
+        }
+    };
+}
+
+bool is_ud (Set<std::string> const &code) {
+    Set<Set<std::string>> S;
+    S.insert(code);
+    auto oldSuffix = code;
+    Set<std::string> newSuffix;
+
+    while(!oldSuffix.empty()) {
+        for (auto const &w1 : code) {
+            for (auto const &w2 : oldSuffix) {
                 if (w1.length() == w2.length())
                     continue;
 
@@ -50,10 +66,16 @@ bool is_ud (Set<std::string> const &code) {
                     if (code.find (v) != code.end())
                         return false;
                     else
-                        S[i].insert (v);
+                        newSuffix.insert(v);
                 }
             }
         }
+
+        Set<Set<std::string>>::iterator si;
+        bool inserted;
+        std::tie(si, inserted) = S.insert(newSuffix);
+        if (!inserted) return true;
+        oldSuffix = std::move(newSuffix);  
     }
 
     return true;
